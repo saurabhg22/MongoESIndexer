@@ -1,0 +1,45 @@
+{
+  "name": "mongoesindexer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha -r ts-node/register test/**/*.spec.ts -t 20000 --exit",
+    "watch": "node_modules/typescript/bin/tsc -w",
+    "build": "tsc",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm test"
+  },
+  "dependencies": {
+    "elasticsearch": "^16.3.0"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.2.0",
+    "@types/chai-as-promised": "^7.1.2",
+    "@types/faker": "^4.1.5",
+    "@types/jest": "^24.0.17",
+    "@types/lodash": "^4.14.136",
+    "@types/mocha": "^5.2.7",
+    "@types/mongodb": "^3.2.2",
+    "@types/node": "^12.7.1",
+    "chai": "^4.2.0",
+    "chai-as-promised": "^7.1.1",
+    "faker": "^4.1.0",
+    "jest": "^24.8.0",
+    "mocha": "^6.2.0",
+    "nodemon": "^1.19.1",
+    "ts-jest": "^24.0.2",
+    "ts-node": "^8.3.0",
+    "typescript": "^3.5.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saurabhg22/MongoESIndexer.git"
+  },
+  "author": "Saurabh Gupta",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/saurabhg22/MongoESIndexer/issues"
+  },
+  "homepage": "https://github.com/saurabhg22/MongoESIndexer#readme"
+}
