@@ -11,7 +11,8 @@
     "prepublishOnly": "npm test"
   },
   "dependencies": {
-    "elasticsearch": "^16.3.0"
+    "@elastic/elasticsearch": "npm:@elastic/elasticsearch@^6.8.3",
+    "mongoqueryresolver": "^1.0.11"
   },
   "devDependencies": {
     "@types/chai": "^4.2.0",

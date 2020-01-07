@@ -1,0 +1,25 @@
+{
+    "model": "user",
+    "batchSize": 500,
+    "batchInterval":1000,
+    "indexOnStart": true,
+    "forceDeleteOnStart": true,
+    "dbQuery": {
+        "collection": "user",
+        "fields": [
+            "firstName",
+            {
+                "field": "Age",
+                "value": "age"
+            }
+        ]
+    },
+    "indexSetting": {
+        "settings":{
+
+        },
+        "mappings":{
+            
+        }
+    }
+}
