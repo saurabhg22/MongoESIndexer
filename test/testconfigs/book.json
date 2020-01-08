@@ -1,5 +1,12 @@
 {
     "model": "Book",
     "dbQuery": {},
-    "indexSetting": {}
+    "indexSettings": {
+        "settings": {},
+        "mappings": {
+            "doc": {
+                "properties": {}
+            }
+        }
+    }
 }

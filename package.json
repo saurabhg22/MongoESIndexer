@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@elastic/elasticsearch": "npm:@elastic/elasticsearch@^6.8.3",
+    "mongodb": "^3.4.1",
     "mongoqueryresolver": "^1.0.11"
   },
   "devDependencies": {
@@ -22,7 +23,7 @@
     "@types/lodash": "^4.14.136",
     "@types/mocha": "^5.2.7",
     "@types/mongodb": "^3.2.2",
-    "@types/node": "^12.7.1",
+    "@types/node": "^12.12.24",
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
     "faker": "^4.1.0",
