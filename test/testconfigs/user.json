@@ -18,6 +18,7 @@
         "settings": {},
         "mappings": {
             "doc": {
+                "dynamic":false,
                 "properties": {
                     "id":{
                         "type":"text"

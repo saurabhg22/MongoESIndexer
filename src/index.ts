@@ -3,7 +3,7 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 import { Db, ObjectID } from 'mongodb';
 import { Client } from '@elastic/elasticsearch';
-import IConfig, { IIndexSettings } from './Iconfig';
+import IConfig from './Iconfig';
 import { promisify } from 'util';
 
 const DEFAULT_BATCH_SIZE = 100;
@@ -19,6 +19,7 @@ export default class MongoESIndexer {
     db: Db;
     client: Client;
 
+
     constructor(configDir: string, esHosts: string | Array<string>, mongoUri: string, indexPrefix?: string) {
         this.configDir = path.resolve(configDir);
         this.esHosts = typeof esHosts === 'string' ? esHosts.split(',') : esHosts;
@@ -26,6 +27,7 @@ export default class MongoESIndexer {
         this.indexPrefix = indexPrefix;
         this.client = new Client({ nodes: esHosts });
     }
+
 
     async init() {
         this.db = await MongoQueryResolver.init(this.mongoUri);
@@ -36,7 +38,12 @@ export default class MongoESIndexer {
             config.batchSize = config.batchSize || DEFAULT_BATCH_SIZE;
             config.batchInterval = config.batchInterval || DEFAULT_BATCH_INTERVAL;
             this.configs.push(config);
+
+            if (config.forceDeleteOnStart) {
+                await this.deleteIndex(config.indexName);
+            }
             await this.upsertIndex(config.indexName);
+
             if (config.indexSettings && config.indexSettings.settings && Object.keys(config.indexSettings.settings).length) {
                 console.log("Object.keys(config.indexSettings.settings)", Object.keys(config.indexSettings.settings))
                 await this.updateSettings(config.indexName, config.indexSettings);
@@ -44,25 +51,31 @@ export default class MongoESIndexer {
             if (config.indexSettings && config.indexSettings.mappings && Object.keys(config.indexSettings.mappings).length) {
                 await this.updateMappings(config.indexName, config.indexSettings.mappings);
             }
-            if (config.forceDeleteOnStart) {
-                await this.deleteIndex(config.indexName);
-            }
             if (config.indexOnStart) {
                 await this.indexAll(config);
             }
         }
-
     }
+
 
     async indexOne(model: string, _id: string) {
 
     }
 
+
+    async doesIndexExists(indexName: string) {
+        let existsResp = await this.client.indices.exists({ index: indexName });
+        return existsResp && (existsResp.statusCode === 200 || existsResp.statusCode === 202);
+    }
+
+
     async deleteIndex(indexName: string) {
-        console.info(`Deleting index: ${indexName}`);
-        return this.client.indices.delete({
-            index: indexName
-        });
+        if (await this.doesIndexExists(indexName)) {
+            console.info(`Deleting index: ${indexName}`);
+            return this.client.indices.delete({
+                index: indexName
+            });
+        }
     }
 
 
@@ -73,22 +86,23 @@ export default class MongoESIndexer {
         })
     }
 
+
     async upsertIndex(indexName: string) {
-        if (this.client.indices.exists({ index: indexName })) return;
+        if (await this.doesIndexExists(indexName)) return;
         console.info("Creating index:", indexName);
         return this.client.indices.create({ index: indexName });
     }
 
+
     async updateMappings(indexName: string | Array<string>, mappings: Object) {
+        console.log('Updating mappings:', indexName)
         return this.client.indices.putMapping({
             index: indexName,
             body: mappings,
             type: "doc"
-        }).catch(err => {
-            console.log(err.meta.body.error);
-
         });
     }
+
 
     private async index(indexName: string, docs: Array<{ _id: ObjectID, [key: string]: any }>) {
         const bulkOperations: ({ [key: string]: any; _id: ObjectID; } | { index: { _index: string; _type: string; _id: ObjectID; }; })[] = [];
@@ -122,14 +136,14 @@ export default class MongoESIndexer {
         let done = 0;
         const dbQuery = { ...config.dbQuery };
         dbQuery.limit = config.batchSize;
-        do {
+        while (done < total) {
             dbQuery.skip = done;
             let results = await MongoQueryResolver.filter(dbQuery);
             await this.index(config.indexName, results);
             done += config.batchSize;
             console.info(`${done}/${total} ${config.model} were indexed in ${config.indexName} index`);
             await delay(config.batchInterval);
-        } while (done < total);
+        }
     }
 
 }

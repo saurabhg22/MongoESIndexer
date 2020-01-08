@@ -1,6 +1,10 @@
 {
     "model": "Book",
-    "dbQuery": {},
+    "dbQuery": {
+        "collection": "Book"
+    },
+    "indexOnStart": true,
+    "forceDeleteOnStart": true,
     "indexSettings": {
         "settings": {},
         "mappings": {
