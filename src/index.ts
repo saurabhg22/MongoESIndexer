@@ -28,6 +28,11 @@ export default class MongoESIndexer {
         this.client = new Client({ nodes: esHosts });
     }
 
+    private getConfigByIndexName(indexName: string): IConfig {
+        const config = this.configs.find(config => config.indexName === indexName);
+        if (!config) throw new Error(`No config found for ${indexName}`);
+        return config;
+    }
 
     async init() {
         this.db = await MongoQueryResolver.init(this.mongoUri);
@@ -35,7 +40,7 @@ export default class MongoESIndexer {
         for (let configFilePath of configFilePaths) {
             const config: IConfig = require(path.join(this.configDir, configFilePath));
             config.indexName = config.indexName || (this.indexPrefix + config.model).toLowerCase();
-            config.batchSize = config.batchSize || DEFAULT_BATCH_SIZE;
+            config.batchSize = Math.min(config.batchSize || DEFAULT_BATCH_SIZE, 1000);
             config.batchInterval = config.batchInterval || DEFAULT_BATCH_INTERVAL;
             this.configs.push(config);
 
@@ -63,7 +68,7 @@ export default class MongoESIndexer {
     }
 
 
-    async doesIndexExists(indexName: string) {
+    async doesIndexExists(indexName: string): Promise<boolean> {
         let existsResp = await this.client.indices.exists({ index: indexName });
         return existsResp && (existsResp.statusCode === 200 || existsResp.statusCode === 202);
     }
@@ -104,15 +109,18 @@ export default class MongoESIndexer {
     }
 
 
-    private async index(indexName: string, docs: Array<{ _id: ObjectID, [key: string]: any }>) {
-        const bulkOperations: ({ [key: string]: any; _id: ObjectID; } | { index: { _index: string; _type: string; _id: ObjectID; }; })[] = [];
+    async bulkIndex(indexName: string, filter: Omit<MongoQueryResolver.Filter, "collection">) {
+        const config = this.getConfigByIndexName(indexName);
+        const dbQuery = { ...config.dbQuery, ...filter };
+        const docs = await MongoQueryResolver.filter(dbQuery);
+        const bulkOperations: ({ [key: string]: any; _id: ObjectID; } | { index: { _index: string; _type: string; _id: string; }; })[] = [];
         docs.forEach(doc => {
             bulkOperations.push(...[
                 {
                     index: {
                         _index: indexName,
                         _type: "doc",
-                        _id: doc._id
+                        _id: doc._id || doc.id
                     }
                 },
                 {
@@ -135,11 +143,9 @@ export default class MongoESIndexer {
         console.info(`Starting index for ${total} ${config.model}`);
         let done = 0;
         const dbQuery = { ...config.dbQuery };
-        dbQuery.limit = config.batchSize;
         while (done < total) {
             dbQuery.skip = done;
-            let results = await MongoQueryResolver.filter(dbQuery);
-            await this.index(config.indexName, results);
+            await this.bulkIndex(config.indexName, { limit: config.batchSize, skip: done });
             done += config.batchSize;
             console.info(`${done}/${total} ${config.model} were indexed in ${config.indexName} index`);
             await delay(config.batchInterval);
