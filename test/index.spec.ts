@@ -9,8 +9,8 @@ import * as chaiAsPromised from 'chai-as-promised';
 chai.use(chaiAsPromised);
 chai.should();
 
-const USERS_LENGTH = 500;
-const BOOKS_LENGTH = 2000;
+const USERS_LENGTH = 6000;
+const BOOKS_LENGTH = 10000;
 
 describe('init', function () {
     let db: Db;

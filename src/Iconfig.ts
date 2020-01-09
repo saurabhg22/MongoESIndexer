@@ -15,6 +15,7 @@ export default interface IConfig {
     batchSize?: number,
     batchInterval?: number,
     indexOnStart?: boolean,
+    forceIndexOnStart?: boolean,
     forceDeleteOnStart?: boolean,
     dbQuery: Filter,
     indexSettings: IIndexSettings

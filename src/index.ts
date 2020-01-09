@@ -75,6 +75,9 @@ export default class MongoESIndexer {
 
 
     async deleteIndex(indexName: string) {
+        const config = this.getConfigByIndexName(indexName);
+        await this.db.collection(config.model).updateMany(config.dbQuery.where || {}, { $unset: { elasticsearchLastIndex: 1 } });
+
         if (await this.doesIndexExists(indexName)) {
             console.info(`Deleting index: ${indexName}`);
             return this.client.indices.delete({
@@ -139,12 +142,11 @@ export default class MongoESIndexer {
                 body: bulkOperations
             });
 
-
         } catch (error) {
             const failureItemsIds = docs.map(doc => doc._id);
-            this.db.collection(config.model).updateMany({
+            await this.db.collection(config.model).updateMany({
                 _id: {
-                    inq: failureItemsIds
+                    $in: failureItemsIds
                 }
             }, {
                 $set: {
@@ -152,18 +154,23 @@ export default class MongoESIndexer {
                 }
             });
         }
+        await this.saveBulkResp(bulkResp, config);
+    }
+
+    private async saveBulkResp(bulkResp: { body: { items: any[]; }; }, config: IConfig) {
         const successItemsIds = bulkResp.body.items
-            .filter((item: any) => item && item.index && item.index.status === 201)
+            .filter((item: any) => item && item.index && item.index.status >= 200 && item.index.status < 300)
             .map((item: any) => item.index && item.index._id)
             .filter((_id: any) => _id);
+
         const indexErrors = bulkResp.body.items
-            .filter((item: any) => item && item.index && item.index.status === 201)
+            .filter((item: any) => item && item.index && (item.index.status < 200 || item.index.status >= 300))
             .map((item: any) => item.index && item.index)
             .filter((indexError: any) => indexError);
 
-        this.db.collection(config.model).updateMany({
+        await this.db.collection(config.model).updateMany({
             _id: {
-                inq: successItemsIds.map((_id: string) => new ObjectId(_id))
+                $in: successItemsIds.map((_id: string) => new ObjectId(_id))
             }
         }, {
             $set: {
@@ -171,7 +178,6 @@ export default class MongoESIndexer {
                 elasticSearchError: false
             }
         });
-
         for (let indexError of indexErrors) {
             await this.db.collection(config.model).updateOne({
                 _id: new ObjectId(indexError._id)
@@ -185,13 +191,22 @@ export default class MongoESIndexer {
 
     async indexAll(indexName: string) {
         const config = this.getConfigByIndexName(indexName);
+        if (!config.forceIndexOnStart) {
+            config.dbQuery.where = {
+                ...config.dbQuery.where || {},
+                elasticsearchLastIndex: { $exists: false }
+            }
+        }
         const total = await this.db.collection(config.model).countDocuments(config.dbQuery.where);
         console.info(`Starting index for ${total} ${config.model}`);
         let done = 0;
         const dbQuery = { ...config.dbQuery };
         while (done < total) {
             dbQuery.skip = done;
-            await this.bulkIndex(config.indexName, { limit: config.batchSize, skip: done, sort: { elasticsearchLastIndex: 1 } });
+            await this.bulkIndex(config.indexName, {
+                limit: config.batchSize,
+                [config.forceIndexOnStart ? 'skip' : 'where']: config.forceIndexOnStart ? done : config.dbQuery.where
+            });
             done += config.batchSize;
             console.info(`${done}/${total} ${config.model} were indexed in ${config.indexName} index`);
             await delay(config.batchInterval);

@@ -1,7 +1,9 @@
 {
     "model": "Book",
+    "batchSize": 400,
     "indexOnStart": true,
-    "forceDeleteOnStart": true,
+    "forceIndexOnStart": true,
+    "forceDeleteOnStart": false,
     "dbQuery": {
         "collection": "Book",
         "include": {
