@@ -10,6 +10,7 @@ chai.use(chaiAsPromised);
 chai.should();
 
 const USERS_LENGTH = 500;
+const BOOKS_LENGTH = 2000;
 
 describe('init', function () {
     let db: Db;
@@ -26,8 +27,19 @@ describe('init', function () {
             }
             return user;
         });
-
-        await db.collection("user").insertMany(users);
+        let books = Array.from(new Array(BOOKS_LENGTH).keys()).map((index) => {
+            let book = {
+                title: faker.name.title(),
+                _id: new ObjectID(),
+                description: faker.lorem.paragraph(),
+                rating: faker.random.number({ min: 1, max: 10 }),
+                publishedDate: faker.date.past(),
+                userId: users[faker.random.number({ min: 0, max: USERS_LENGTH - 1 })]._id
+            }
+            return book;
+        });
+        await db.collection("User").insertMany(users);
+        await db.collection("Book").insertMany(books);
     });
     this.afterAll(async () => {
         db.dropDatabase();

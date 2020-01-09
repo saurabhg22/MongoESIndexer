@@ -1,7 +1,7 @@
 import * as MongoQueryResolver from 'mongoqueryresolver';
 import { promises as fs } from 'fs';
 import * as path from 'path';
-import { Db, ObjectID } from 'mongodb';
+import { Db, ObjectID, ObjectId } from 'mongodb';
 import { Client } from '@elastic/elasticsearch';
 import IConfig from './Iconfig';
 import { promisify } from 'util';
@@ -57,7 +57,7 @@ export default class MongoESIndexer {
                 await this.updateMappings(config.indexName, config.indexSettings.mappings);
             }
             if (config.indexOnStart) {
-                await this.indexAll(config);
+                await this.indexAll(config.indexName);
             }
         }
     }
@@ -120,32 +120,78 @@ export default class MongoESIndexer {
                     index: {
                         _index: indexName,
                         _type: "doc",
-                        _id: doc._id || doc.id
+                        _id: doc._id
                     }
                 },
                 {
                     ...doc,
                     _id: undefined,
-                    id: doc._id || doc.id
+                    id: doc._id
                 }
             ]);
         });
-        await this.client.bulk({
-            index: indexName,
-            type: "_doc",
-            body: bulkOperations
-        })
 
+        let bulkResp;
+        try {
+            bulkResp = await this.client.bulk({
+                index: indexName,
+                type: "_doc",
+                body: bulkOperations
+            });
+
+
+        } catch (error) {
+            const failureItemsIds = docs.map(doc => doc._id);
+            this.db.collection(config.model).updateMany({
+                _id: {
+                    inq: failureItemsIds
+                }
+            }, {
+                $set: {
+                    elasticSearchError: error
+                }
+            });
+        }
+        const successItemsIds = bulkResp.body.items
+            .filter((item: any) => item && item.index && item.index.status === 201)
+            .map((item: any) => item.index && item.index._id)
+            .filter((_id: any) => _id);
+        const indexErrors = bulkResp.body.items
+            .filter((item: any) => item && item.index && item.index.status === 201)
+            .map((item: any) => item.index && item.index)
+            .filter((indexError: any) => indexError);
+
+        this.db.collection(config.model).updateMany({
+            _id: {
+                inq: successItemsIds.map((_id: string) => new ObjectId(_id))
+            }
+        }, {
+            $set: {
+                elasticsearchLastIndex: new Date(),
+                elasticSearchError: false
+            }
+        });
+
+        for (let indexError of indexErrors) {
+            await this.db.collection(config.model).updateOne({
+                _id: new ObjectId(indexError._id)
+            }, {
+                $set: {
+                    elasticSearchError: indexError
+                }
+            });
+        }
     }
 
-    async indexAll(config: IConfig) {
+    async indexAll(indexName: string) {
+        const config = this.getConfigByIndexName(indexName);
         const total = await this.db.collection(config.model).countDocuments(config.dbQuery.where);
         console.info(`Starting index for ${total} ${config.model}`);
         let done = 0;
         const dbQuery = { ...config.dbQuery };
         while (done < total) {
             dbQuery.skip = done;
-            await this.bulkIndex(config.indexName, { limit: config.batchSize, skip: done });
+            await this.bulkIndex(config.indexName, { limit: config.batchSize, skip: done, sort: { elasticsearchLastIndex: 1 } });
             done += config.batchSize;
             console.info(`${done}/${total} ${config.model} were indexed in ${config.indexName} index`);
             await delay(config.batchInterval);
@@ -153,7 +199,3 @@ export default class MongoESIndexer {
     }
 
 }
-
-
-
-// new MongoESIndexer("./test/testconfigs", "loclahost:9200,localhost:9300", "mongodb://localhost:27017/testdb", "testdb").init()

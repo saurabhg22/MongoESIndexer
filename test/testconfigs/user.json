@@ -1,10 +1,10 @@
 {
-    "model": "user",
+    "model": "User",
     "batchSize": 100,
     "indexOnStart": true,
     "forceDeleteOnStart": true,
     "dbQuery": {
-        "collection": "user",
+        "collection": "User",
         "fields": [
             "_id",
             "firstName",
