@@ -1,8 +1,8 @@
 {
     "model": "User",
     "batchSize": 300,
-    "forceIndexOnStart":true,
     "indexOnStart": true,
+    "forceIndexOnStart": false,
     "forceDeleteOnStart": true,
     "dbQuery": {
         "collection": "User",

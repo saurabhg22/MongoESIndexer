@@ -13,10 +13,10 @@ const USERS_LENGTH = 6000;
 const BOOKS_LENGTH = 10000;
 
 describe('init', function () {
-    let db: Db;
+    let db: Db, users:Array<any>=[], books:Array<any>=[];
     this.beforeAll(async () => {
         db = await MongoQueryResolver.init("mongodb://localhost:27017/testdb");
-        let users = Array.from(new Array(USERS_LENGTH).keys()).map((index) => {
+        users = Array.from(new Array(USERS_LENGTH).keys()).map((index) => {
             let user = {
                 firstName: faker.name.firstName(),
                 lastName: faker.name.lastName(),
@@ -27,7 +27,7 @@ describe('init', function () {
             }
             return user;
         });
-        let books = Array.from(new Array(BOOKS_LENGTH).keys()).map((index) => {
+        books = Array.from(new Array(BOOKS_LENGTH).keys()).map((index) => {
             let book = {
                 title: faker.name.title(),
                 _id: new ObjectID(),
@@ -50,5 +50,10 @@ describe('init', function () {
     });
     it('should pass with correct configDir', async function () {
         await new MongoESIndexer("./test/testconfigs", "http://localhost:9200/", "mongodb://localhost:27017/testdb", "testdb").init().should.be.fulfilled;
+    });
+    it('should index single instance', async function () {
+        let mongoESIndexer = new MongoESIndexer("./test/testconfigs", "http://localhost:9200/", "mongodb://localhost:27017/testdb", "testdb");
+        await mongoESIndexer.init();
+        await mongoESIndexer.indexOne('testdbuser', users[0]._id);
     });
 });

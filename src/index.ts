@@ -51,10 +51,10 @@ export default class MongoESIndexer {
 
             if (config.indexSettings && config.indexSettings.settings && Object.keys(config.indexSettings.settings).length) {
                 console.log("Object.keys(config.indexSettings.settings)", Object.keys(config.indexSettings.settings))
-                await this.updateSettings(config.indexName, config.indexSettings);
+                await this.updateIndexSettings(config.indexName, config.indexSettings);
             }
             if (config.indexSettings && config.indexSettings.mappings && Object.keys(config.indexSettings.mappings).length) {
-                await this.updateMappings(config.indexName, config.indexSettings.mappings);
+                await this.updateIndexMappings(config.indexName, config.indexSettings.mappings);
             }
             if (config.indexOnStart) {
                 await this.indexAll(config.indexName);
@@ -63,9 +63,48 @@ export default class MongoESIndexer {
     }
 
 
-    async indexOne(model: string, _id: string) {
+    async deleteOne(indexName: string, _id: string | ObjectId) {
+        const config = this.getConfigByIndexName(indexName);
+        _id = typeof _id === 'string' ? new ObjectId(_id) : _id;
+
 
     }
+
+    async indexOne(indexName: string, _id: string | ObjectId) {
+        const config = this.getConfigByIndexName(indexName);
+        _id = typeof _id === 'string' ? new ObjectId(_id) : _id;
+        let [doc] = await MongoQueryResolver.filter({
+            ...config.dbQuery,
+            limit: 1,
+            skip: 0,
+            where: {
+                _id
+            }
+        });
+        if (!doc) return;
+        
+        try {
+            await this.client.index({
+                index: indexName,
+                type: 'doc',
+                body: doc
+            });
+        } catch (error) {
+            await this.db.collection(config.model).updateOne({ _id }, {
+                $set: {
+                    _elasticSearchErrorDate: new Date(),
+                    _elasticSearchError: error
+                }
+            });
+        }
+        await this.db.collection(config.model).updateOne({ _id }, {
+            $set: {
+                _elasticsearchLastIndex: new Date(),
+                _elasticSearchError: false
+            }
+        });
+    }
+
 
 
     async doesIndexExists(indexName: string): Promise<boolean> {
@@ -76,7 +115,7 @@ export default class MongoESIndexer {
 
     async deleteIndex(indexName: string) {
         const config = this.getConfigByIndexName(indexName);
-        await this.db.collection(config.model).updateMany(config.dbQuery.where || {}, { $unset: { elasticsearchLastIndex: 1 } });
+        await this.db.collection(config.model).updateMany(config.dbQuery.where || {}, { $unset: { _elasticsearchLastIndex: 1 } });
 
         if (await this.doesIndexExists(indexName)) {
             console.info(`Deleting index: ${indexName}`);
@@ -87,7 +126,7 @@ export default class MongoESIndexer {
     }
 
 
-    async updateSettings(indexName: string | Array<string>, settings: Object) {
+    async updateIndexSettings(indexName: string | Array<string>, settings: Object) {
         return this.client.indices.putSettings({
             index: indexName,
             body: settings
@@ -102,7 +141,7 @@ export default class MongoESIndexer {
     }
 
 
-    async updateMappings(indexName: string | Array<string>, mappings: Object) {
+    async updateIndexMappings(indexName: string | Array<string>, mappings: Object) {
         console.log('Updating mappings:', indexName)
         return this.client.indices.putMapping({
             index: indexName,
@@ -150,7 +189,8 @@ export default class MongoESIndexer {
                 }
             }, {
                 $set: {
-                    elasticSearchError: error
+                    _elasticSearchErrorDate: new Date(),
+                    _elasticSearchError: error
                 }
             });
         }
@@ -174,8 +214,8 @@ export default class MongoESIndexer {
             }
         }, {
             $set: {
-                elasticsearchLastIndex: new Date(),
-                elasticSearchError: false
+                _elasticsearchLastIndex: new Date(),
+                _elasticSearchError: false
             }
         });
         for (let indexError of indexErrors) {
@@ -183,7 +223,8 @@ export default class MongoESIndexer {
                 _id: new ObjectId(indexError._id)
             }, {
                 $set: {
-                    elasticSearchError: indexError
+                    _elasticSearchErrorDate: new Date(),
+                    _elasticSearchError: indexError
                 }
             });
         }
@@ -194,7 +235,7 @@ export default class MongoESIndexer {
         if (!config.forceIndexOnStart) {
             config.dbQuery.where = {
                 ...config.dbQuery.where || {},
-                elasticsearchLastIndex: { $exists: false }
+                _elasticsearchLastIndex: { $exists: false }
             }
         }
         const total = await this.db.collection(config.model).countDocuments(config.dbQuery.where);
