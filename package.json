@@ -2,7 +2,7 @@
   "name": "mongoesindexer",
   "version": "1.0.0",
   "description": "Elasticsearch indexer for MongoDB.",
-  "main": "index.js",
+  "main": "bin/src/index.js",
   "scripts": {
     "test": "mocha -r ts-node/register test/**/*.spec.ts -t 20000 --exit",
     "watch": "node_modules/typescript/bin/tsc -w",
