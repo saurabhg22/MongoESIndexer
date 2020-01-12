@@ -1,7 +1,7 @@
 {
   "name": "mongoesindexer",
   "version": "1.0.0",
-  "description": "",
+  "description": "Elasticsearch indexer for MongoDB.",
   "main": "index.js",
   "scripts": {
     "test": "mocha -r ts-node/register test/**/*.spec.ts -t 20000 --exit",

@@ -81,13 +81,15 @@ describe.skip('deleteOne', () => {
     });
 });
 
-describe.skip('bulkIndex', () => {
-
+describe('bulkIndex', () => {
+    it('should index 100 users', async function () {
+        await mongoESIndexer.bulkIndex('testdbuser', { limit: 100 }).should.be.fulfilled;
+    });
 });
 
-describe('bulkUpdate', () => {
-    it('should update all users', async function () {
-        await mongoESIndexer.bulkUpdate('testdbuser', { }, { Age: 20 }).should.be.fulfilled;
+describe.skip('bulkUpdate', () => {
+    it('should update age to 20 of all users', async function () {
+        await mongoESIndexer.bulkUpdate('testdbuser', {}, { Age: 20 }).should.be.fulfilled;
     });
 });
 
