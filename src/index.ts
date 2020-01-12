@@ -91,7 +91,7 @@ export default class MongoESIndexer {
 
     async deleteByQuery(indexName: string, query: { [key: string]: any }) {
         try {
-            let resp = await this.client.deleteByQuery({
+            await this.client.deleteByQuery({
                 index: indexName,
                 type: 'doc',
                 body: query
