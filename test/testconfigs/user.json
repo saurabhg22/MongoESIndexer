@@ -1,7 +1,7 @@
 {
     "model": "User",
     "batchSize": 300,
-    "indexOnStart": false,
+    "indexOnStart": true,
     "forceIndexOnStart": false,
     "forceDeleteOnStart": true,
     "dbQuery": {
@@ -19,7 +19,6 @@
         "settings": {},
         "mappings": {
             "doc": {
-                "dynamic":false,
                 "properties": {
                     "id":{
                         "type":"text"

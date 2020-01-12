@@ -3,8 +3,10 @@ import * as MongoQueryResolver from 'mongoqueryresolver';
 import * as chai from 'chai';
 import * as faker from 'faker';
 import { Db, ObjectID } from 'mongodb';
-
+import { promisify } from 'util';
 import * as chaiAsPromised from 'chai-as-promised';
+
+const sleep = promisify(setTimeout);
 
 chai.use(chaiAsPromised);
 chai.should();
@@ -81,15 +83,34 @@ describe.skip('deleteOne', () => {
     });
 });
 
-describe('bulkIndex', () => {
-    it('should index 100 users', async function () {
-        await mongoESIndexer.bulkIndex('testdbuser', { limit: 100 }).should.be.fulfilled;
+describe.skip('bulkIndex', () => {
+    it('should index 300 users', async function () {
+        await mongoESIndexer.bulkIndex('testdbuser', { limit: 300 }).should.be.fulfilled;
     });
 });
 
 describe.skip('bulkUpdate', () => {
     it('should update age to 20 of all users', async function () {
         await mongoESIndexer.bulkUpdate('testdbuser', {}, { Age: 20 }).should.be.fulfilled;
+    });
+});
+
+describe('deleteByQuery', () => {
+    it('should delete all users aged below 18', async function () {
+        await sleep(5000);
+        await mongoESIndexer.deleteByQuery('testdbuser', {
+            query: {
+                bool: {
+                    filter: {
+                        range: {
+                            Age: {
+                                lt: 18
+                            }
+                        }
+                    }
+                }
+            }
+        }).should.be.fulfilled;
     });
 });
 
