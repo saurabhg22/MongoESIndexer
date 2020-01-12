@@ -155,7 +155,10 @@ export default class MongoESIndexer {
                 index: indexName,
                 type: 'doc',
                 body: {
-                    doc
+                    doc:{
+                        ...doc,
+                        _id:undefined
+                    }
                 }
             });
         } catch (error) {
