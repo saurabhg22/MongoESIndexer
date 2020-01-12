@@ -64,25 +64,38 @@ export default class MongoESIndexer {
 
 
     async deleteOne(indexName: string, _id: string | ObjectId) {
-        const config = this.getConfigByIndexName(indexName);
+
         _id = typeof _id === 'string' ? new ObjectId(_id) : _id;
+
+        try {
+            await this.client.delete({
+                index: indexName,
+                id: _id.toString(),
+                type: 'doc'
+            });
+        } catch (error) {
+            return error;
+        }
 
 
     }
 
-    async indexOne(indexName: string, _id: string | ObjectId) {
+    async indexOne(indexName: string, _id: string | ObjectId, doc?: { [key: string]: any }) {
         const config = this.getConfigByIndexName(indexName);
         _id = typeof _id === 'string' ? new ObjectId(_id) : _id;
-        let [doc] = await MongoQueryResolver.filter({
-            ...config.dbQuery,
-            limit: 1,
-            skip: 0,
-            where: {
-                _id
-            }
-        });
+        if (!doc) {
+            [doc] = await MongoQueryResolver.filter({
+                ...config.dbQuery,
+                limit: 1,
+                skip: 0,
+                where: {
+                    _id
+                }
+            });
+        }
+
         if (!doc) return;
-        
+
         try {
             await this.client.index({
                 index: indexName,
@@ -97,6 +110,40 @@ export default class MongoESIndexer {
                 }
             });
         }
+    }
+
+    async updateOne(indexName: string, _id: string | ObjectId, doc?: { [key: string]: any }) {
+        const config = this.getConfigByIndexName(indexName);
+        _id = typeof _id === 'string' ? new ObjectId(_id) : _id;
+        if (!doc) {
+            [doc] = await MongoQueryResolver.filter({
+                ...config.dbQuery,
+                limit: 1,
+                skip: 0,
+                where: {
+                    _id
+                }
+            });
+        }
+        if (!doc) return;
+
+        try {
+            await this.client.update({
+                id: _id.toString(),
+                index: indexName,
+                type: 'doc',
+                body: doc
+            });
+        } catch (error) {
+            await this.db.collection(config.model).updateOne({ _id }, {
+                $set: {
+                    _elasticSearchErrorDate: new Date(),
+                    _elasticSearchError: error
+                }
+            });
+        }
+
+
         await this.db.collection(config.model).updateOne({ _id }, {
             $set: {
                 _elasticsearchLastIndex: new Date(),
@@ -155,7 +202,8 @@ export default class MongoESIndexer {
         const config = this.getConfigByIndexName(indexName);
         const dbQuery = { ...config.dbQuery, ...filter };
         const docs = await MongoQueryResolver.filter(dbQuery);
-        const bulkOperations: ({ [key: string]: any; _id: ObjectID; } | { index: { _index: string; _type: string; _id: string; }; })[] = [];
+        const bulkOperations: any[] = [];
+
         docs.forEach(doc => {
             bulkOperations.push(...[
                 {
@@ -193,8 +241,70 @@ export default class MongoESIndexer {
                     _elasticSearchError: error
                 }
             });
+        } finally {
+            await this.saveBulkResp(bulkResp, config);
         }
-        await this.saveBulkResp(bulkResp, config);
+    }
+
+    async bulkUpdate(indexName: string, filter: Omit<MongoQueryResolver.Filter, "collection">, updates?: { [key: string]: any }) {
+        const config = this.getConfigByIndexName(indexName);
+        const dbQuery = { ...config.dbQuery, ...filter };
+        let docs = await MongoQueryResolver.filter(dbQuery);
+        if (updates) {
+            for (let index in docs) {
+                docs[index] = {
+                    ...updates,
+                    _id: docs[index]._id
+                }
+            }
+        }
+        const bulkOperations: any[] = [];
+
+        docs.forEach(doc => {
+            bulkOperations.push(...[
+                {
+                    update: {
+                        _index: indexName,
+                        _type: "doc",
+                        _id: doc._id,
+                        retry_on_conflict: 3
+                    }
+                },
+                {
+                    doc: {
+                        ...doc,
+                        _id: undefined,
+                        id: doc._id
+                    },
+                    doc_as_upsert: true
+                }
+            ]);
+        });
+
+        let bulkResp;
+        try {
+            bulkResp = await this.client.bulk({
+                index: indexName,
+                type: "_doc",
+                body: bulkOperations
+            });
+
+        } catch (error) {
+            console.log(error.meta.body.error);
+            const failureItemsIds = docs.map(doc => doc._id);
+            await this.db.collection(config.model).updateMany({
+                _id: {
+                    $in: failureItemsIds
+                }
+            }, {
+                $set: {
+                    _elasticSearchErrorDate: new Date(),
+                    _elasticSearchError: error
+                }
+            });
+        } finally {
+            await this.saveBulkResp(bulkResp, config);
+        }
     }
 
     private async saveBulkResp(bulkResp: { body: { items: any[]; }; }, config: IConfig) {
@@ -232,7 +342,7 @@ export default class MongoESIndexer {
 
     async indexAll(indexName: string) {
         const config = this.getConfigByIndexName(indexName);
-        if (!config.forceIndexOnStart) {
+        if (!config.forceIndexOnStart && !config.forceDeleteOnStart) {
             config.dbQuery.where = {
                 ...config.dbQuery.where || {},
                 _elasticsearchLastIndex: { $exists: false }
@@ -246,7 +356,7 @@ export default class MongoESIndexer {
             dbQuery.skip = done;
             await this.bulkIndex(config.indexName, {
                 limit: config.batchSize,
-                [config.forceIndexOnStart ? 'skip' : 'where']: config.forceIndexOnStart ? done : config.dbQuery.where
+                [config.forceIndexOnStart || config.forceDeleteOnStart ? 'skip' : 'where']: config.forceIndexOnStart || config.forceDeleteOnStart ? done : config.dbQuery.where
             });
             done += config.batchSize;
             console.info(`${done}/${total} ${config.model} were indexed in ${config.indexName} index`);
