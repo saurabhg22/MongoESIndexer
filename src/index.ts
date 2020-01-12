@@ -154,7 +154,9 @@ export default class MongoESIndexer {
                 id: _id.toString(),
                 index: indexName,
                 type: 'doc',
-                body: doc
+                body: {
+                    doc
+                }
             });
         } catch (error) {
             await this.db.collection(config.model).updateOne({ _id }, {
@@ -385,7 +387,7 @@ export default class MongoESIndexer {
                 [config.forceIndexOnStart || config.forceDeleteOnStart ? 'skip' : 'where']: config.forceIndexOnStart || config.forceDeleteOnStart ? done : config.dbQuery.where
             });
             done += config.batchSize;
-            console.info(`${done}/${total} ${config.model} were indexed in ${config.indexName} index`);
+            console.info(`${Math.min(done, total)}/${total} ${config.model} were indexed in ${config.indexName} index`);
             await delay(config.batchInterval);
         }
     }

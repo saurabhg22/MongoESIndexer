@@ -68,7 +68,7 @@ describe.skip('indexOne', () => {
     });
 });
 
-describe.skip('updateOne', () => {
+describe('updateOne', () => {
     it('should update single instance', async function () {
         await mongoESIndexer.updateOne('testdbuser', users[0]._id).should.be.fulfilled;
     });
