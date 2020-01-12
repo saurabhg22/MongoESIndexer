@@ -5,6 +5,7 @@ import { Db, ObjectID, ObjectId } from 'mongodb';
 import { Client } from '@elastic/elasticsearch';
 import IConfig from './Iconfig';
 import { promisify } from 'util';
+import { settings } from 'cluster';
 
 const DEFAULT_BATCH_SIZE = 100;
 const DEFAULT_BATCH_INTERVAL = 0;
@@ -47,7 +48,7 @@ export default class MongoESIndexer {
             if (config.forceDeleteOnStart) {
                 await this.deleteIndex(config.indexName);
             }
-            await this.upsertIndex(config.indexName);
+            await this.upsertIndex(config.indexName, config.indexSettings);
 
             if (config.indexSettings && config.indexSettings.settings && Object.keys(config.indexSettings.settings).length) {
                 console.log("Object.keys(config.indexSettings.settings)", Object.keys(config.indexSettings.settings))
@@ -193,17 +194,23 @@ export default class MongoESIndexer {
 
 
     async updateIndexSettings(indexName: string | Array<string>, settings: Object) {
-        return this.client.indices.putSettings({
+        await this.client.indices.close({
+            index: indexName
+        });
+        await this.client.indices.putSettings({
             index: indexName,
             body: settings
-        })
+        });
+        await this.client.indices.open({
+            index: indexName
+        });
     }
 
 
-    async upsertIndex(indexName: string) {
+    async upsertIndex(indexName: string, settings: Object) {
         if (await this.doesIndexExists(indexName)) return;
         console.info("Creating index:", indexName);
-        return this.client.indices.create({ index: indexName });
+        return this.client.indices.create({ index: indexName, body: settings });
     }
 
 
@@ -384,3 +391,6 @@ export default class MongoESIndexer {
     }
 
 }
+
+
+
