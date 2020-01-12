@@ -64,9 +64,7 @@ export default class MongoESIndexer {
 
 
     async deleteOne(indexName: string, _id: string | ObjectId) {
-
         _id = typeof _id === 'string' ? new ObjectId(_id) : _id;
-
         try {
             await this.client.delete({
                 index: indexName,
@@ -76,8 +74,31 @@ export default class MongoESIndexer {
         } catch (error) {
             return error;
         }
+    }
 
+    async deleteByIds(indexName: string, ids: Array<string>) {
+        return this.deleteByQuery(indexName, {
+            query: {
+                bool: {
+                    should: ids.map(id => ({
+                        term: { id: id.toString() }
+                    })),
+                    minimum_should_match: 1
+                }
+            }
+        })
+    }
 
+    async deleteByQuery(indexName: string, query: { [key: string]: any }) {
+        try {
+            await this.client.deleteByQuery({
+                index: indexName,
+                type: 'doc',
+                body: query
+            });
+        } catch (error) {
+            return error;
+        }
     }
 
     async indexOne(indexName: string, _id: string | ObjectId, doc?: { [key: string]: any }) {
@@ -151,8 +172,6 @@ export default class MongoESIndexer {
             }
         });
     }
-
-
 
     async doesIndexExists(indexName: string): Promise<boolean> {
         let existsResp = await this.client.indices.exists({ index: indexName });
@@ -340,7 +359,7 @@ export default class MongoESIndexer {
         }
     }
 
-    async indexAll(indexName: string) {
+    private async indexAll(indexName: string) {
         const config = this.getConfigByIndexName(indexName);
         if (!config.forceIndexOnStart && !config.forceDeleteOnStart) {
             config.dbQuery.where = {
