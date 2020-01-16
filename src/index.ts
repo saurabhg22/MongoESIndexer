@@ -5,7 +5,7 @@ import { Db, ObjectId } from 'mongodb';
 import { Client } from '@elastic/elasticsearch';
 import IConfig, { IIndexSettings } from './Iconfig';
 import { promisify } from 'util';
-
+import * as merge from 'deepmerge';
 const DEFAULT_BATCH_SIZE = 100;
 const DEFAULT_BATCH_INTERVAL = 0;
 const delay = promisify(setTimeout);
@@ -47,7 +47,7 @@ export default class MongoESIndexer {
         }
         for (let configFilePath of configFilePaths) {
             let config: IConfig = require(path.join(this.configDir, configFilePath));
-            config = Object.assign(this.defaultConfig, config);
+            config = merge(this.defaultConfig, config);
             config.indexName = config.indexName || (this.indexPrefix + config.model).toLowerCase();
             config.batchSize = Math.min(config.batchSize || DEFAULT_BATCH_SIZE, 1000);
             config.batchInterval = config.batchInterval || DEFAULT_BATCH_INTERVAL;

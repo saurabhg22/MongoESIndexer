@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@elastic/elasticsearch": "npm:@elastic/elasticsearch@^6.8.3",
+    "deepmerge": "^4.2.2",
     "mongodb": "^3.4.1",
     "mongoqueryresolver": "^1.0.11"
   },
