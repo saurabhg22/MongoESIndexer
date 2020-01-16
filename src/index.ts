@@ -15,20 +15,20 @@ export default class MongoESIndexer {
     esHosts: Array<string>;
     mongoUri: string;
     indexPrefix: string = "";
-    defaultIndexSettings: IIndexSettings = { settings: {}, mappings: { doc: { properties: {} } } };
-    defaultIndexSettingsPath?: string;
+    defaultConfig: Partial<IConfig>;
+    defaultConfigPath?: string;
     configs: Array<IConfig> = [];
     db: Db;
     client: Client;
 
 
-    constructor(configDir: string, esHosts: string | Array<string>, mongoUri: string, indexPrefix?: string, defaultIndexSettingsPath?: string) {
+    constructor(configDir: string, esHosts: string | Array<string>, mongoUri: string, indexPrefix?: string, defaultConfigPath?: string) {
         this.configDir = path.resolve(configDir);
         this.esHosts = typeof esHosts === 'string' ? esHosts.split(',') : esHosts;
         this.mongoUri = mongoUri;
         this.indexPrefix = indexPrefix;
-        if (defaultIndexSettingsPath) {
-            this.defaultIndexSettingsPath = path.resolve(defaultIndexSettingsPath);
+        if (defaultConfigPath) {
+            this.defaultConfigPath = path.resolve(defaultConfigPath);
         }
         this.client = new Client({ nodes: esHosts });
     }
@@ -42,15 +42,17 @@ export default class MongoESIndexer {
     async init() {
         this.db = await MongoQueryResolver.init(this.mongoUri);
         const configFilePaths = await fs.readdir(this.configDir);
-        if (this.defaultIndexSettingsPath) {
-            this.defaultIndexSettings = require(this.defaultIndexSettingsPath);
+        if (this.defaultConfigPath) {
+            this.defaultConfig = require(this.defaultConfigPath);
         }
         for (let configFilePath of configFilePaths) {
-            const config: IConfig = require(path.join(this.configDir, configFilePath));
+            let config: IConfig = require(path.join(this.configDir, configFilePath));
+            config = Object.assign(this.defaultConfig, config);
             config.indexName = config.indexName || (this.indexPrefix + config.model).toLowerCase();
             config.batchSize = Math.min(config.batchSize || DEFAULT_BATCH_SIZE, 1000);
             config.batchInterval = config.batchInterval || DEFAULT_BATCH_INTERVAL;
-            config.indexSettings = Object.assign(this.defaultIndexSettings, config.indexSettings || {}) as IIndexSettings;
+            config.dbQuery.collection = config.dbQuery.collection || config.model;
+            
             this.configs.push(config);
 
             if (config.forceDeleteOnStart) {
