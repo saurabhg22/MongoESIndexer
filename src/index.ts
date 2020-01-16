@@ -27,7 +27,9 @@ export default class MongoESIndexer {
         this.esHosts = typeof esHosts === 'string' ? esHosts.split(',') : esHosts;
         this.mongoUri = mongoUri;
         this.indexPrefix = indexPrefix;
-        this.defaultIndexSettingsPath = path.resolve(defaultIndexSettingsPath);
+        if (defaultIndexSettingsPath) {
+            this.defaultIndexSettingsPath = path.resolve(defaultIndexSettingsPath);
+        }
         this.client = new Client({ nodes: esHosts });
     }
 
