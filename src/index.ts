@@ -3,7 +3,7 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 import { Db, ObjectId } from 'mongodb';
 import { Client } from '@elastic/elasticsearch';
-import IConfig, { IIndexSettings } from './Iconfig';
+import IConfig from './Iconfig';
 import { promisify } from 'util';
 import * as merge from 'deepmerge';
 const DEFAULT_BATCH_SIZE = 100;
