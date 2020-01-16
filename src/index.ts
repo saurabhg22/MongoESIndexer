@@ -1,11 +1,10 @@
 import * as MongoQueryResolver from 'mongoqueryresolver';
 import { promises as fs } from 'fs';
 import * as path from 'path';
-import { Db, ObjectID, ObjectId } from 'mongodb';
+import { Db, ObjectId } from 'mongodb';
 import { Client } from '@elastic/elasticsearch';
-import IConfig from './Iconfig';
+import IConfig, { IIndexSettings } from './Iconfig';
 import { promisify } from 'util';
-import { settings } from 'cluster';
 
 const DEFAULT_BATCH_SIZE = 100;
 const DEFAULT_BATCH_INTERVAL = 0;
@@ -16,16 +15,19 @@ export default class MongoESIndexer {
     esHosts: Array<string>;
     mongoUri: string;
     indexPrefix: string = "";
+    defaultIndexSettings: IIndexSettings = { settings: {}, mappings: { doc: { properties: {} } } };
+    defaultIndexSettingsPath?: string;
     configs: Array<IConfig> = [];
     db: Db;
     client: Client;
 
 
-    constructor(configDir: string, esHosts: string | Array<string>, mongoUri: string, indexPrefix?: string) {
+    constructor(configDir: string, esHosts: string | Array<string>, mongoUri: string, indexPrefix?: string, defaultIndexSettingsPath?: string) {
         this.configDir = path.resolve(configDir);
         this.esHosts = typeof esHosts === 'string' ? esHosts.split(',') : esHosts;
         this.mongoUri = mongoUri;
         this.indexPrefix = indexPrefix;
+        this.defaultIndexSettingsPath = path.resolve(defaultIndexSettingsPath);
         this.client = new Client({ nodes: esHosts });
     }
 
@@ -38,25 +40,22 @@ export default class MongoESIndexer {
     async init() {
         this.db = await MongoQueryResolver.init(this.mongoUri);
         const configFilePaths = await fs.readdir(this.configDir);
+        if (this.defaultIndexSettingsPath) {
+            this.defaultIndexSettings = require(this.defaultIndexSettingsPath);
+        }
         for (let configFilePath of configFilePaths) {
             const config: IConfig = require(path.join(this.configDir, configFilePath));
             config.indexName = config.indexName || (this.indexPrefix + config.model).toLowerCase();
             config.batchSize = Math.min(config.batchSize || DEFAULT_BATCH_SIZE, 1000);
             config.batchInterval = config.batchInterval || DEFAULT_BATCH_INTERVAL;
+            config.indexSettings = Object.assign(this.defaultIndexSettings, config.indexSettings || {}) as IIndexSettings;
             this.configs.push(config);
 
             if (config.forceDeleteOnStart) {
                 await this.deleteIndex(config.indexName);
             }
-            await this.upsertIndex(config.indexName, config.indexSettings);
+            await this.upsertIndex(config.indexName);
 
-            if (config.indexSettings && config.indexSettings.settings && Object.keys(config.indexSettings.settings).length) {
-                console.log("Object.keys(config.indexSettings.settings)", Object.keys(config.indexSettings.settings))
-                await this.updateIndexSettings(config.indexName, config.indexSettings);
-            }
-            if (config.indexSettings && config.indexSettings.mappings && Object.keys(config.indexSettings.mappings).length) {
-                await this.updateIndexMappings(config.indexName, config.indexSettings.mappings);
-            }
             if (config.indexOnStart) {
                 await this.indexAll(config.indexName);
             }
@@ -77,7 +76,7 @@ export default class MongoESIndexer {
         }
     }
 
-    async deleteByIds(indexName: string, ids: Array<string>) {
+    async deleteByIds(indexName: string, ids: Array<string | ObjectId>) {
         return this.deleteByQuery(indexName, {
             query: {
                 bool: {
@@ -155,9 +154,9 @@ export default class MongoESIndexer {
                 index: indexName,
                 type: 'doc',
                 body: {
-                    doc:{
+                    doc: {
                         ...doc,
-                        _id:undefined
+                        _id: undefined
                     }
                 }
             });
@@ -184,7 +183,6 @@ export default class MongoESIndexer {
         return existsResp && (existsResp.statusCode === 200 || existsResp.statusCode === 202);
     }
 
-
     async deleteIndex(indexName: string) {
         const config = this.getConfigByIndexName(indexName);
         await this.db.collection(config.model).updateMany(config.dbQuery.where || {}, { $unset: { _elasticsearchLastIndex: 1 } });
@@ -196,7 +194,6 @@ export default class MongoESIndexer {
             });
         }
     }
-
 
     async updateIndexSettings(indexName: string | Array<string>, settings: Object) {
         await this.client.indices.close({
@@ -211,13 +208,19 @@ export default class MongoESIndexer {
         });
     }
 
-
-    async upsertIndex(indexName: string, settings: Object) {
-        if (await this.doesIndexExists(indexName)) return;
+    async upsertIndex(indexName: string) {
+        const config = this.getConfigByIndexName(indexName);
+        if (await this.doesIndexExists(indexName)) {
+            if (config.indexSettings && config.indexSettings.settings && Object.keys(config.indexSettings.settings).length) {
+                await this.updateIndexSettings(indexName, config.indexSettings);
+            }
+            if (config.indexSettings && config.indexSettings.mappings && Object.keys(config.indexSettings.mappings).length) {
+                await this.updateIndexMappings(indexName, config.indexSettings.mappings);
+            }
+        }
         console.info("Creating index:", indexName);
-        return this.client.indices.create({ index: indexName, body: settings });
+        return this.client.indices.create({ index: indexName, body: config.indexSettings });
     }
-
 
     async updateIndexMappings(indexName: string | Array<string>, mappings: Object) {
         console.log('Updating mappings:', indexName)
@@ -227,7 +230,6 @@ export default class MongoESIndexer {
             type: "doc"
         });
     }
-
 
     async bulkIndex(indexName: string, filter: Omit<MongoQueryResolver.Filter, "collection">) {
         const config = this.getConfigByIndexName(indexName);
