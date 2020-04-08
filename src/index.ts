@@ -30,7 +30,7 @@ export default class MongoESIndexer {
         if (defaultConfigPath) {
             this.defaultConfigPath = path.resolve(defaultConfigPath);
         }
-        this.client = new Client({ nodes: esHosts });
+        this.client = new Client({ nodes: this.esHosts });
     }
 
     private getConfigByIndexName(indexName: string): IConfig {
@@ -52,7 +52,7 @@ export default class MongoESIndexer {
             config.batchSize = Math.min(config.batchSize || DEFAULT_BATCH_SIZE, 1000);
             config.batchInterval = config.batchInterval || DEFAULT_BATCH_INTERVAL;
             config.dbQuery.collection = config.dbQuery.collection || config.model;
-            
+
             this.configs.push(config);
 
             if (config.forceDeleteOnStart) {
