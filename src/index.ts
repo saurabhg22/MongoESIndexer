@@ -352,8 +352,9 @@ export default class MongoESIndexer {
 
         const indexErrors = bulkResp.body.items
             .filter((item: any) => item && item.index && (item.index.status < 200 || item.index.status >= 300))
-            .map((item: any) => item.index && item.index)
+            .map((item: any) => item.index)
             .filter((indexError: any) => indexError);
+        console.log("indexErrors", indexErrors)
 
         await this.db.collection(config.model).updateMany({
             _id: {
