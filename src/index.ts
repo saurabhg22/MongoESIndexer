@@ -151,7 +151,7 @@ export default class MongoESIndexer {
             });
         }
         if (!doc) {
-            console.log("filter", {
+            console.debug("filter", {
                 ...config.dbQuery,
                 limit: 1,
                 skip: 0,
@@ -160,8 +160,12 @@ export default class MongoESIndexer {
                 }
             });
             return;
-        };
+        }
+        else {
+            console.debug("doc", doc)
+        }
 
+        let success = false;
         try {
             await this.client.update({
                 id: _id.toString(),
@@ -174,6 +178,7 @@ export default class MongoESIndexer {
                     }
                 }
             });
+            success = true;
         } catch (error) {
             await this.db.collection(config.model).updateOne({ _id }, {
                 $set: {
@@ -183,13 +188,14 @@ export default class MongoESIndexer {
             });
         }
 
-
-        await this.db.collection(config.model).updateOne({ _id }, {
-            $set: {
-                _elasticsearchLastIndex: new Date(),
-                _elasticSearchError: false
-            }
-        });
+        if (success) {
+            await this.db.collection(config.model).updateOne({ _id }, {
+                $set: {
+                    _elasticsearchLastIndex: new Date(),
+                    _elasticSearchError: false
+                }
+            });
+        }
     }
 
     async doesIndexExists(indexName: string): Promise<boolean> {
