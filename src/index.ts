@@ -128,7 +128,8 @@ export default class MongoESIndexer {
                 type: 'doc',
                 body: {
                     ...doc,
-                    _id: undefined
+                    _id: undefined,
+                    id: doc._id
                 },
                 id: _id.toString()
             });
