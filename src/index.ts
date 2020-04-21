@@ -121,17 +121,28 @@ export default class MongoESIndexer {
 
         if (!doc) return;
 
+        let success = false;
         try {
             await this.client.index({
                 index: indexName,
                 type: 'doc',
                 body: doc
             });
+            success = true;
         } catch (error) {
             await this.db.collection(config.model).updateOne({ _id }, {
                 $set: {
                     _elasticSearchErrorDate: new Date(),
                     _elasticSearchError: error
+                }
+            });
+        }
+
+        if (success) {
+            await this.db.collection(config.model).updateOne({ _id }, {
+                $set: {
+                    _elasticsearchLastIndex: new Date(),
+                    _elasticSearchError: false
                 }
             });
         }
