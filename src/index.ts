@@ -150,7 +150,17 @@ export default class MongoESIndexer {
                 }
             });
         }
-        if (!doc) return;
+        if (!doc) {
+            console.log("filter", {
+                ...config.dbQuery,
+                limit: 1,
+                skip: 0,
+                where: {
+                    _id
+                }
+            });
+            return;
+        };
 
         try {
             await this.client.update({
