@@ -126,7 +126,11 @@ export default class MongoESIndexer {
             await this.client.index({
                 index: indexName,
                 type: 'doc',
-                body: doc
+                body: {
+                    ...doc,
+                    _id: undefined
+                },
+                id: _id.toString()
             });
             success = true;
         } catch (error) {
