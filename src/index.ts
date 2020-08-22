@@ -177,9 +177,6 @@ export default class MongoESIndexer {
             });
             return;
         }
-        else {
-            console.debug("doc", doc)
-        }
 
         let success = false;
         try {
