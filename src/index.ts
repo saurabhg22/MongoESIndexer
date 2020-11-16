@@ -251,8 +251,10 @@ export default class MongoESIndexer {
                 await this.updateIndexMappings(indexName, config.indexSettings.mappings);
             }
         }
-        console.info("Creating index:", indexName);
-        return this.client.indices.create({ index: indexName, body: config.indexSettings });
+        else{
+            console.info("Creating index:", indexName);
+            this.client.indices.create({ index: indexName, body: config.indexSettings });
+        }
     }
 
     async updateIndexMappings(indexName: string | Array<string>, mappings: Object) {
