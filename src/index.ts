@@ -244,10 +244,10 @@ export default class MongoESIndexer {
     async upsertIndex(indexName: string) {
         const config = this.getConfigByIndexName(indexName);
         if (await this.doesIndexExists(indexName)) {
-            if (config.indexSettings && config.indexSettings.settings && Object.keys(config.indexSettings.settings).length) {
+            if (config.updateSettingsOnStart && config.indexSettings && config.indexSettings.settings && Object.keys(config.indexSettings.settings).length) {
                 await this.updateIndexSettings(indexName, config.indexSettings);
             }
-            if (config.indexSettings && config.indexSettings.mappings && Object.keys(config.indexSettings.mappings).length) {
+            if (config.updateMappingsOnStart && config.updateMappingsOnStart && config.indexSettings && config.indexSettings.mappings && Object.keys(config.indexSettings.mappings).length) {
                 await this.updateIndexMappings(indexName, config.indexSettings.mappings);
             }
         }
