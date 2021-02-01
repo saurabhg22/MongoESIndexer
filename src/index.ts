@@ -243,7 +243,8 @@ export default class MongoESIndexer {
 
     async upsertIndex(indexName: string) {
         const config = this.getConfigByIndexName(indexName);
-        if (await this.doesIndexExists(indexName)) {
+        const indexAlreadyExists = await this.doesIndexExists(indexName)
+        if (indexAlreadyExists) {
             if (config.updateSettingsOnStart && config.indexSettings && config.indexSettings.settings && Object.keys(config.indexSettings.settings).length) {
                 await this.updateIndexSettings(indexName, config.indexSettings);
             }
@@ -253,7 +254,7 @@ export default class MongoESIndexer {
         }
         else{
             console.info("Creating index:", indexName);
-            this.client.indices.create({ index: indexName, body: config.indexSettings });
+            await this.client.indices.create({ index: indexName, body: config.indexSettings });
         }
     }
 
