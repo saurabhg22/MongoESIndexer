@@ -4,7 +4,7 @@
   "description": "Elasticsearch indexer for MongoDB.",
   "main": "bin/index.js",
   "scripts": {
-    "test": "mocha -r ts-node/register test/**/*.spec.ts -t 20000 --exit",
+    "test": "mocha -r ts-node/register test/**/*.spec.ts -t 50000 --exit",
     "watch": "node_modules/typescript/bin/tsc -w",
     "build": "tsc",
     "prepare": "npm run build",

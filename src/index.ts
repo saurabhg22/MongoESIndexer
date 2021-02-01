@@ -254,7 +254,7 @@ export default class MongoESIndexer {
         }
         else{
             console.info("Creating index:", indexName);
-            await this.client.indices.create({ index: indexName, body: config.indexSettings });
+             this.client.indices.create({ index: indexName, body: config.indexSettings });
         }
     }
 
