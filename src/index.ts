@@ -39,7 +39,7 @@ export default class MongoESIndexer {
         return config;
     }
 
-    async init() {
+    async setup() {
         this.db = await MongoQueryResolver.init(this.mongoUri);
         const configFilePaths = await fs.readdir(this.configDir);
         if (this.defaultConfigPath) {
@@ -55,17 +55,28 @@ export default class MongoESIndexer {
 
             this.configs.push(config);
 
-            if (config.forceDeleteOnStart) {
-                await this.deleteIndex(config.indexName);
-            }
-            await this.upsertIndex(config.indexName);
+        }
 
-            if (config.indexOnStart) {
-                await this.indexAll(config.indexName);
-            }
+        await this.init();
+    }
+
+
+    async init() {
+        for (let config of this.configs) {
+            await this.initIndex(config);
         }
     }
 
+    async initIndex(config: IConfig) {
+        if (config.forceDeleteOnStart) {
+            await this.deleteIndex(config.indexName);
+        }
+        await this.upsertIndex(config.indexName);
+
+        if (config.indexOnStart) {
+            await this.indexAll(config.indexName);
+        }
+    }
 
     async deleteOne(indexName: string, _id: string | ObjectId) {
         _id = typeof _id === 'string' ? new ObjectId(_id) : _id;
