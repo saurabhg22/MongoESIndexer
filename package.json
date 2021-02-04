@@ -1,6 +1,6 @@
 {
   "name": "mongoesindexer",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Elasticsearch indexer for MongoDB.",
   "main": "bin/index.js",
   "scripts": {

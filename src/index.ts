@@ -56,8 +56,6 @@ export default class MongoESIndexer {
             this.configs.push(config);
 
         }
-
-        await this.init();
     }
 
 
