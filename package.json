@@ -11,7 +11,7 @@
     "prepublishOnly": "npm test"
   },
   "dependencies": {
-    "@elastic/elasticsearch": "npm:@elastic/elasticsearch@^6.8.3",
+    "@elastic/elasticsearch": "^7.16.0",
     "deepmerge": "^4.2.2",
     "mongodb": "^3.4.1",
     "mongoqueryresolver": "https://github.com/saurabhg22/mongoqueryresolver.git"

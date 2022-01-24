@@ -320,7 +320,7 @@ export default class MongoESIndexer {
                 }
             });
         } finally {
-            await this.saveBulkResp(bulkResp, config);
+            await this.saveBulkResp(bulkResp as any, config);
         }
     }
 
@@ -381,7 +381,7 @@ export default class MongoESIndexer {
                 }
             });
         } finally {
-            await this.saveBulkResp(bulkResp, config);
+            await this.saveBulkResp(bulkResp as any, config);
         }
     }
 
