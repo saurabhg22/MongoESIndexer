@@ -29,8 +29,10 @@
     "indexSettings": {
         "settings": {},
         "mappings": {
-            "doc": {
-                "properties": {}
+            "properties": {
+                "_id": {
+                    "type": "keyword"
+                }
             }
         }
     }

@@ -10,6 +10,8 @@ const DEFAULT_BATCH_SIZE = 100;
 const DEFAULT_BATCH_INTERVAL = 0;
 const delay = promisify(setTimeout);
 
+const DOC_TYPE = '_doc';
+
 export default class MongoESIndexer {
     configDir: string;
     esHosts: Array<string>;
@@ -20,6 +22,7 @@ export default class MongoESIndexer {
     configs: Array<IConfig> = [];
     db: Db;
     client: Client;
+    setupComplete: boolean = false;
 
 
     constructor(configDir: string, esHosts: string | Array<string>, mongoUri: string, indexPrefix?: string, defaultConfigPath?: string) {
@@ -34,6 +37,10 @@ export default class MongoESIndexer {
     }
 
     private getConfigByIndexName(indexName: string): IConfig {
+        if(!this.setupComplete){
+            delay(1000);
+            return this.getConfigByIndexName(indexName);
+        }
         const config = this.configs.find(config => config.indexName === indexName);
         if (!config) throw new Error(`No config found for ${indexName}`);
         return config;
@@ -56,6 +63,7 @@ export default class MongoESIndexer {
             this.configs.push(config);
 
         }
+        this.setupComplete = true;
     }
 
 
@@ -82,7 +90,7 @@ export default class MongoESIndexer {
             await this.client.delete({
                 index: indexName,
                 id: _id.toString(),
-                type: 'doc'
+                type: DOC_TYPE
             });
         } catch (error) {
             return error;
@@ -106,7 +114,7 @@ export default class MongoESIndexer {
         try {
             await this.client.deleteByQuery({
                 index: indexName,
-                type: 'doc',
+                type: DOC_TYPE,
                 body: query
             });
         } catch (error) {
@@ -134,7 +142,7 @@ export default class MongoESIndexer {
         try {
             await this.client.index({
                 index: indexName,
-                type: 'doc',
+                type: DOC_TYPE,
                 body: {
                     ...doc,
                     _id: undefined,
@@ -192,7 +200,7 @@ export default class MongoESIndexer {
             await this.client.update({
                 id: _id.toString(),
                 index: indexName,
-                type: 'doc',
+                type: DOC_TYPE,
                 body: {
                     doc: {
                         ...doc,
@@ -272,7 +280,7 @@ export default class MongoESIndexer {
         return this.client.indices.putMapping({
             index: indexName,
             body: mappings,
-            type: "doc"
+            type: DOC_TYPE
         });
     }
 
@@ -287,7 +295,7 @@ export default class MongoESIndexer {
                 {
                     index: {
                         _index: indexName,
-                        _type: "doc",
+                        _type: DOC_TYPE,
                         _id: doc._id
                     }
                 },
@@ -303,7 +311,7 @@ export default class MongoESIndexer {
         try {
             bulkResp = await this.client.bulk({
                 index: indexName,
-                type: "_doc",
+                type: DOC_TYPE,
                 body: bulkOperations
             });
 
@@ -343,7 +351,7 @@ export default class MongoESIndexer {
                 {
                     update: {
                         _index: indexName,
-                        _type: "doc",
+                        _type: DOC_TYPE,
                         _id: doc._id,
                         retry_on_conflict: 3
                     }
@@ -363,7 +371,7 @@ export default class MongoESIndexer {
         try {
             bulkResp = await this.client.bulk({
                 index: indexName,
-                type: "_doc",
+                type: DOC_TYPE,
                 body: bulkOperations
             });
 

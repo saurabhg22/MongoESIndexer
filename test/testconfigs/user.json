@@ -55,31 +55,29 @@
             }
         },
         "mappings": {
-            "doc": {
-                "properties": {
-                    "name": {
-                        "type": "text",
-                        "analyzer": "autocomplete_analyzer",
-                        "search_analyzer": "autosearch"
-                    },
-                    "recentJobTitle": {
-                        "type": "text",
-                        "analyzer": "autocomplete_analyzer",
-                        "search_analyzer": "autosearch"
-                    },
-                    "recentCompany": {
-                        "type": "text",
-                        "analyzer": "autocomplete_analyzer",
-                        "search_analyzer": "autosearch"
-                    },
-                    "email": {
-                        "type": "text",
-                        "analyzer": "autocomplete_analyzer",
-                        "search_analyzer": "autosearch",
-                        "fields": {
-                            "keyword": {
-                                "type": "keyword"
-                            }
+            "properties": {
+                "name": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch"
+                },
+                "recentJobTitle": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch"
+                },
+                "recentCompany": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch"
+                },
+                "email": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
                         }
                     }
                 }
