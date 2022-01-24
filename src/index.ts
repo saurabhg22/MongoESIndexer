@@ -10,7 +10,7 @@ const DEFAULT_BATCH_SIZE = 100;
 const DEFAULT_BATCH_INTERVAL = 0;
 const delay = promisify(setTimeout);
 
-const DOC_TYPE = '_doc';
+const DOC_TYPE = 'doc';
 
 export default class MongoESIndexer {
     configDir: string;
