@@ -6,6 +6,7 @@
 			"request": "attach",
 			"name": "Attach NestJS WS",
 			"port": 9229,
+			"address": "0.0.0.0",
 			"restart": true,
 			"cwd": "${workspaceFolder}/src",
 			"remoteRoot": "/usr/src/app",

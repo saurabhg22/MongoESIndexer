@@ -9,7 +9,12 @@ services:
             dockerfile: Dockerfile
         container_name: mongo_es_indexer
         command: ['yarn', 'start:debug']
+        ports:
+            - 9229:9229
+        volumes:
+            - ./src:/usr/src/app/src
 
+            
 networks:
     default:
         driver: bridge

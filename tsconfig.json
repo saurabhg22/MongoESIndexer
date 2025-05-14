@@ -29,6 +29,11 @@
 			]
 		}
 	},
+	"include": [
+		"src/**/*.ts",
+		"scripts/**/*.ts",
+		"src/**/*.json"
+	],
 	"exclude": [
 		"node_modules",
 		"dist"

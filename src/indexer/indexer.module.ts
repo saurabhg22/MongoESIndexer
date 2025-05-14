@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { IndexerService } from './indexer.service';
 import { Client } from '@elastic/elasticsearch';
+import { MongoClient } from 'mongodb';
 
 @Module({
 	imports: [],
@@ -11,12 +12,19 @@ import { Client } from '@elastic/elasticsearch';
 			inject: [],
 			useFactory() {
 				return new Client({
-					nodes: ['http://es01:9200', 'http://es02:9201', 'http://es03:9202'],
+					nodes: ['http://es01:9200', 'http://es02:9200', 'http://es03:9200'],
 					auth: {
 						username: 'elastic',
 						password: 'elastic_password',
 					},
 				});
+			},
+		},
+		{
+			provide: 'MongoClient',
+			inject: [],
+			useFactory() {
+				return new MongoClient('mongodb://localhost:27017/ltd_new');
 			},
 		},
 	],
