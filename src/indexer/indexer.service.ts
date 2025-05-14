@@ -23,7 +23,7 @@ export class IndexerService {
 			);
 			await this.upsertIndex(config.index_params as IndicesCreateRequest);
 			if (config.index_on_start) {
-				await this.indexDocuments(config);
+				await this.indexCollection(config);
 			}
 		}
 	}
@@ -51,23 +51,60 @@ export class IndexerService {
 			});
 			console.log('exists', exists);
 			if (exists) {
-				console.log('index already exists, updating mapping');
+				console.log(`upsertIndex: index ${params.index} already exists, updating mapping`);
 				return this.updateMapping(params);
 			}
-			console.log('index does not exist, creating');
+			console.log(`upsertIndex: index ${params.index} does not exist, creating`);
 			return this.esClient.indices.create(params);
 		} catch (error) {
-			console.error('upsertIndex: error', error);
+			console.error(`upsertIndex: index ${params.index} error ${error}`);
 		}
 	}
 
-	async indexDocuments(config: Configuration) {
-		console.log('indexDocuments', config);
-		const documents = await this.mongoService.getDocuments(
-			config.collection,
-			config.aggregation_pipeline,
-			config.batch_size,
-		);
-		console.log('documents', documents);
+	async getBulkIndexBody(index: string, documents: any[]) {
+		return documents.flatMap((document) => [
+			{
+				index: {
+					_index: index,
+					_id: document._id || document.id,
+				},
+			},
+			{ ...document, _id: undefined, id: document._id || document.id },
+		]);
+	}
+
+	async bulkIndexDocuments(index: string, documents: any[]) {
+		console.log(`bulkIndexDocuments: index ${index}`);
+		const bulkBody = await this.getBulkIndexBody(index, documents);
+		const response = await this.esClient.bulk({
+			index,
+			body: bulkBody,
+		});
+		console.log(`bulkIndexDocuments: ${bulkBody.length / 2} documents indexed`);
+		return response;
+	}
+
+	async indexCollection(config: Configuration) {
+		console.log(`indexCollection: index ${config.index_params.index}`);
+		const totalDocuments = await this.mongoService.countDocuments(config.collection, config.aggregation_pipeline);
+		console.log(`indexCollection: Total documents: ${totalDocuments}`);
+
+		let done = 0;
+		let documents = [];
+		while (true) {
+			documents = await this.mongoService.getDocuments(
+				config.collection,
+				config.aggregation_pipeline,
+				config.batch_size,
+				done,
+			);
+			if (documents.length === 0) {
+				console.log(`indexCollection: No more documents to index`);
+				break;
+			}
+			await this.bulkIndexDocuments(config.index_params.index, documents);
+			done += documents.length;
+			console.log(`indexCollection: Completed ${done} documents`);
+		}
 	}
 }
