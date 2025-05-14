@@ -13,6 +13,8 @@ services:
             - 9229:9229
         volumes:
             - ./src:/usr/src/app/src
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
 
             
 networks:

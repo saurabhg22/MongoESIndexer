@@ -2,10 +2,12 @@ import { Module } from '@nestjs/common';
 import { IndexerService } from './indexer.service';
 import { Client } from '@elastic/elasticsearch';
 import { MongoClient } from 'mongodb';
+import { MongoService } from './mongo.service';
 
 @Module({
 	imports: [],
 	providers: [
+		MongoService,
 		IndexerService,
 		{
 			provide: 'ESClient',
@@ -24,7 +26,7 @@ import { MongoClient } from 'mongodb';
 			provide: 'MongoClient',
 			inject: [],
 			useFactory() {
-				return new MongoClient('mongodb://localhost:27017/ltd_new');
+				return new MongoClient('mongodb://host.docker.internal:27017/ltd_new');
 			},
 		},
 	],

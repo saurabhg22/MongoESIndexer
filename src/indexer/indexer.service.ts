@@ -1,14 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Client } from '@elastic/elasticsearch';
-import { MongoClient } from 'mongodb';
 import { IndicesCreateRequest, IndicesPutMappingRequest } from '@elastic/elasticsearch/lib/api/types';
 import * as fs from 'fs/promises';
 import path from 'path';
+import { MongoService } from './mongo.service';
+import { Configuration, ConfigurationSchema } from './config';
 
 @Injectable()
 export class IndexerService {
 	constructor(
-		@Inject('MongoClient') private readonly mongoClient: MongoClient,
+		private readonly mongoService: MongoService,
 		@Inject('ESClient') private readonly esClient: Client,
 	) {
 		this.init(path.join(__dirname, '../configs'));
@@ -17,8 +18,13 @@ export class IndexerService {
 	async init(configDir: string) {
 		const configFiles = await fs.readdir(configDir);
 		for (const configFile of configFiles) {
-			const config = JSON.parse(await fs.readFile(configDir + '/' + configFile, 'utf8'));
-			await this.upsertIndex(config.index_params);
+			const config = ConfigurationSchema.parse(
+				JSON.parse(await fs.readFile(configDir + '/' + configFile, 'utf8')),
+			);
+			await this.upsertIndex(config.index_params as IndicesCreateRequest);
+			if (config.index_on_start) {
+				await this.indexDocuments(config);
+			}
 		}
 	}
 
@@ -53,5 +59,15 @@ export class IndexerService {
 		} catch (error) {
 			console.error('upsertIndex: error', error);
 		}
+	}
+
+	async indexDocuments(config: Configuration) {
+		console.log('indexDocuments', config);
+		const documents = await this.mongoService.getDocuments(
+			config.collection,
+			config.aggregation_pipeline,
+			config.batch_size,
+		);
+		console.log('documents', documents);
 	}
 }
