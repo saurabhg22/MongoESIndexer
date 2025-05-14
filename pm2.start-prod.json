@@ -1,0 +1,11 @@
+{
+	"apps": [
+		{
+			"name": "mongo_es_indexer_production",
+			"script": "dist/src/main.js",
+			"env": {
+				"ENVIRONMENT": "production"
+			}
+		}
+	]
+}

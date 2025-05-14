@@ -1,0 +1,15 @@
+services:
+    mongo-es-indexer:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: mongo_es_indexer
+        env_file:
+            - .env
+        ports:
+            - ${PORT}:${PORT}
+        command: ['yarn', 'start:debug']
+
+networks:
+    default:
+        driver: bridge

@@ -1,48 +1,74 @@
 {
-  "name": "mongoesindexer",
-  "version": "1.0.6",
-  "description": "Elasticsearch indexer for MongoDB.",
-  "main": "bin/index.js",
-  "scripts": {
-    "test": "mocha -r ts-node/register test/**/*.spec.ts -t 50000 --exit",
-    "watch": "node_modules/typescript/bin/tsc -w",
-    "build": "tsc",
-    "prepare": "npm run build",
-    "prepublishOnly": "npm test"
-  },
-  "dependencies": {
-    "@elastic/elasticsearch": "npm:@elastic/elasticsearch@^6.8.3",
-    "deepmerge": "^4.2.2",
-    "mongodb": "^3.4.1",
-    "mongoqueryresolver": "https://github.com/saurabhg22/mongoqueryresolver.git"
-  },
-  "devDependencies": {
-    "@types/chai": "^4.2.0",
-    "@types/chai-as-promised": "^7.1.2",
-    "@types/faker": "^4.1.5",
-    "@types/jest": "^24.0.17",
-    "@types/lodash": "^4.14.136",
-    "@types/mocha": "^5.2.7",
-    "@types/mongodb": "^3.3.14",
-    "@types/node": "^12.12.24",
-    "chai": "^4.2.0",
-    "chai-as-promised": "^7.1.1",
-    "faker": "^4.1.0",
-    "jest": "^24.8.0",
-    "mocha": "^6.2.0",
-    "nodemon": "^1.19.1",
-    "ts-jest": "^24.0.2",
-    "ts-node": "^8.3.0",
-    "typescript": "^3.5.3"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/saurabhg22/MongoESIndexer.git"
-  },
-  "author": "Saurabh Gupta",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/saurabhg22/MongoESIndexer/issues"
-  },
-  "homepage": "https://github.com/saurabhg22/MongoESIndexer#readme"
+	"name": "mongo-es-indexer",
+	"version": "0.0.1",
+	"description": "MongoESIndexer",
+	"author": "Saurabh Gupta",
+	"private": true,
+	"license": "UNLICENSED",
+	"scripts": {
+		"build": "nest build",
+		"format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+		"start": "nest start",
+		"start:dev": "nest start --watch",
+		"start:debug": "nest start --debug --watch",
+		"start:prod": "node dist/main",
+		"lint": "eslint \"{src,apps,libs,test,scripts}/**/*.ts\" --fix",
+		"test": "jest",
+		"test:watch": "jest --watch",
+		"test:cov": "jest --coverage",
+		"test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+		"test:e2e": "jest --config ./test/jest-e2e.json",
+		"env_ex": "npx ts-node scripts/create-example.env.ts",
+		"prepare": "husky"
+	},
+	"dependencies": {
+		"@nestjs/common": "^11.1.1",
+		"@nestjs/core": "^11.1.1",
+		"@nestjs/platform-express": "^11.1.1",
+		"reflect-metadata": "^0.2.2",
+		"rxjs": "^7.8.2",
+		"zod": "^3.24.4"
+	},
+	"devDependencies": {
+		"@nestjs/cli": "^11.0.7",
+		"@nestjs/schematics": "^11.0.5",
+		"@nestjs/testing": "^11.1.1",
+		"@types/express": "^5.0.1",
+		"@types/jest": "^29.5.14",
+		"@types/node": "^22.15.18",
+		"@types/supertest": "^6.0.3",
+		"@typescript-eslint/eslint-plugin": "^8.32.1",
+		"@typescript-eslint/parser": "^8.32.1",
+		"eslint": "^9.26.0",
+		"eslint-config-prettier": "^10.1.5",
+		"eslint-plugin-prettier": "^5.4.0",
+		"husky": "^9.1.7",
+		"jest": "^29.7.0",
+		"prettier": "^3.5.3",
+		"source-map-support": "^0.5.21",
+		"supertest": "^7.1.1",
+		"ts-jest": "^29.3.2",
+		"ts-loader": "^9.5.2",
+		"ts-node": "^10.9.2",
+		"tsconfig-paths": "^4.2.0",
+		"typescript": "^5.8.3"
+	},
+	"jest": {
+		"moduleFileExtensions": [
+			"js",
+			"json",
+			"ts"
+		],
+		"rootDir": "src",
+		"testRegex": ".*\\.spec\\.ts$",
+		"transform": {
+			"^.+\\.(t|j)s$": "ts-jest"
+		},
+		"collectCoverageFrom": [
+			"**/*.(t|j)s"
+		],
+		"coverageDirectory": "../coverage",
+		"testEnvironment": "node"
+	},
+	"packageManager": "yarn@1.22.22+sha1.ac34549e6aa8e7ead463a7407e1c7390f61a6610"
 }

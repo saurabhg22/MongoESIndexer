@@ -1,0 +1,21 @@
+{
+	"editor.formatOnSave": true,
+	"[typescript]": {},
+	"editor.tabCompletion": "on",
+	"editor.tabSize": 4,
+	"editor.codeActionsOnSave": {
+		"source.fixAll.eslint": "explicit"
+	},
+	"cSpell.words": [
+		"dtos",
+		"INITDB",
+		"kubeconfig",
+		"Langchain",
+		"metatype",
+		"nestjs",
+		"nosniff",
+		"pino",
+		"Presigner",
+		"Ramesh"
+	]
+}
