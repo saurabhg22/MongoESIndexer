@@ -29,8 +29,10 @@ export class IndexerService {
 			mappings: {
 				properties: {
 					token: { type: 'keyword' },
-					index: { type: 'keyword' },
-					doc_type: { type: 'keyword' },
+					collection: { type: 'keyword' },
+					created: {
+						type: 'date',
+					},
 				},
 			},
 		});
@@ -48,18 +50,23 @@ export class IndexerService {
 			}
 			await this.handleChangeStream(config.collection);
 		}
-		const resumeTokens = await this.getResumeTokens();
-		console.log('resumeTokens', resumeTokens);
 	}
 
-	async getResumeTokens() {
+	async getResumeToken(collectionName: string) {
 		const response = await this.esClient.search({
 			index: 'resume_tokens',
 			query: {
-				match_all: {},
+				match: {
+					collection: collectionName,
+				},
 			},
+			sort: {
+				created: 'desc',
+			},
+			size: 1,
 		});
-		return response.hits.hits;
+		const token = response.hits.hits[0];
+		return token;
 	}
 
 	async listAllIndices() {
@@ -99,7 +106,7 @@ export class IndexerService {
 		}
 	}
 
-	async getBulkIndexBody(index: string, documents: any[], doc_type: string) {
+	async getBulkIndexBody(index: string, documents: any[], doc_type?: string) {
 		return documents.flatMap((document) => [
 			{
 				index: {
@@ -111,7 +118,7 @@ export class IndexerService {
 		]);
 	}
 
-	async bulkIndexDocuments(index: string, documents: any[], doc_type: string) {
+	async bulkIndexDocuments(index: string, documents: any[], doc_type?: string) {
 		const bulkBody = await this.getBulkIndexBody(index, documents, doc_type);
 		const response = await this.esClient.bulk({
 			index,
@@ -194,19 +201,31 @@ export class IndexerService {
 
 	async handleChangeStream(collectionName: string) {
 		console.log(`handleChangeStream: ${collectionName}`);
-		const changeStream = await this.mongoService.getChangeStream(collectionName, null);
+		const resumeToken = await this.getResumeToken(collectionName);
+		const changeStream = await this.mongoService.getChangeStream(collectionName, resumeToken?._source?.['token']);
 		for await (const change of changeStream) {
 			switch (change.operationType) {
 				case 'insert':
+					console.log(`handleChangeStream: insert ${change.documentKey._id}`);
 					await this.indexOne(collectionName, change.documentKey._id);
 					break;
 				case 'update':
+					console.log(`handleChangeStream: update ${change.documentKey._id}`);
 					await this.indexOne(collectionName, change.documentKey._id);
 					break;
 				case 'delete':
+					console.log(`handleChangeStream: delete ${change.documentKey._id}`);
 					await this.deleteOne(collectionName, change.documentKey._id);
 					break;
 			}
+			await this.bulkIndexDocuments('resume_tokens', [
+				{
+					_id: resumeToken ? resumeToken._id : new ObjectId(),
+					token: change._id._data,
+					collection: collectionName,
+					created: new Date(),
+				},
+			]);
 		}
 	}
 }

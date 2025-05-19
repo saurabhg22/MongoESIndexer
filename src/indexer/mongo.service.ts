@@ -5,14 +5,14 @@ import { MongoClient } from 'mongodb';
 export class MongoService {
 	constructor(@Inject('MongoClient') private readonly mongoClient: MongoClient) {}
 
-	async getChangeStream(collectionName: string, resumeAfter: any) {
+	async getChangeStream(collectionName: string, resumeToken: any) {
 		return this.mongoClient
 			.db()
 			.collection(collectionName)
 			.aggregate([
 				{
 					$changeStream: {
-						resumeAfter,
+						startAfter: { _data: resumeToken },
 					},
 				},
 			]);
