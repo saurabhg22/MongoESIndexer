@@ -1,9 +1,102 @@
 {
     "collection": "CldDoc",
-    "index_on_start": false,
+    "index_on_start": true,
     "force_delete": true,
     "doc_type": "CldDoc",
-    "aggregation_pipeline": [],
+    "aggregation_pipeline": [
+        {
+            "$lookup": {
+                "from": "LtdDoc",
+                "localField": "ltdDocId",
+                "foreignField": "_id",
+                "as": "ltdDoc",
+                "pipeline": [
+                    {
+                        "$lookup": {
+                            "from": "Language",
+                            "localField": "languageIds",
+                            "foreignField": "_id",
+                            "as": "languages",
+                            "pipeline": [
+                                {
+                                    "$project": {
+                                        "name": 1,
+                                        "langISO": 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "$project": {
+                            "id": 1,
+                            "doc_type": 1,
+                            "content_type": 1,
+                            "documentType": 1,
+                            "created": 1,
+                            "updated": 1,
+                            "dateCreated": 1,
+                            "phaseOfCases": 1,
+                            "source": 1,
+                            "title": 1,
+                            "cld": 1,
+                            "_decision": 1,
+                            "caseNumber": 1,
+                            "languages": 1,
+                            "numberOfPages": 1,
+                            "interlocutory": 1,
+                            "presidingJudge": 1,
+                            "caseName_en": 1,
+                            "iccCaseCited": 1,
+                            "slug": 1,
+                            "proxySlugs": 1,
+                            "pdfURL": 1,
+                            "iccSituations": 1,
+                            "iccSituationIds": 1,
+                            "phaseOfCaseIds": 1,
+                            "languageIds": 1,
+                            "cldJudges": 1,
+                            "typeOfDecisionEN": 1,
+                            "typeOfDecisionFR": 1,
+                            "documentTypeEN": 1,
+                            "documentTypeFR": 1,
+                            "documentSourceEN": 1,
+                            "documentSourceFR": 1,
+                            "newVersionAvailable": 1,
+                            "deleted": 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "$project": {
+                "Title": 1,
+                "id": 1,
+                "Appeal Doc ID": 1,
+                "Keyword": 1,
+                "keywordIds": 1,
+                "created": 1,
+                "legalFinding": 1,
+                "ltdDoc": 1,
+                "Finding": 1,
+                "ID": 1,
+                "deleted": 1,
+                "editorCopy": 1,
+                "Confidentiality": 1,
+                "progress": 1,
+                "Source": 1,
+                "Importance01": 1,
+                "dateCreated": 1,
+                "dateModified": 1,
+                "Case/Document number": 1,
+                "Document Number": 1,
+                "situationCase": 1,
+                "cldFieldLanguageId": 1,
+                "cldFieldLanguage": 1
+            }
+        }
+    ],
     "batch_size": 500,
     "index_params": {
         "index": "cld_docs_dev",

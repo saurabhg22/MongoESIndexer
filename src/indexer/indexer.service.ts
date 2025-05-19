@@ -47,6 +47,7 @@ export class IndexerService {
 			if (config.force_delete) {
 				await this.deleteIndex(config.index_params.index);
 			}
+
 			await this.upsertIndex(config.index_params as IndicesCreateRequest);
 			if (config.index_on_start) {
 				await this.indexCollection(config);
@@ -92,7 +93,11 @@ export class IndexerService {
 	}
 
 	async deleteIndex(index: string) {
-		return this.esClient.indices.delete({ index });
+		try {
+			await this.esClient.indices.delete({ index });
+		} catch {
+			console.warn(`Error deleting index ${index}`);
+		}
 	}
 
 	async updateMapping(params: IndicesCreateRequest) {
@@ -108,7 +113,7 @@ export class IndexerService {
 			const exists = await this.esClient.indices.exists({
 				index: params.index,
 			});
-			console.log('exists', exists);
+			console.log(`upsertIndex: index ${params.index} exists: ${exists}`);
 			if (exists) {
 				console.log(`upsertIndex: index ${params.index} already exists, updating mapping`);
 				return this.updateMapping(params);
