@@ -6,6 +6,7 @@ import path from 'path';
 import { MongoService } from './mongo.service';
 import { Configuration, ConfigurationSchema } from './config';
 import Bottleneck from 'bottleneck';
+import cliProgress from 'cli-progress';
 
 @Injectable()
 export class IndexerService {
@@ -13,7 +14,9 @@ export class IndexerService {
 		private readonly mongoService: MongoService,
 		@Inject('ESClient') private readonly esClient: Client,
 	) {
-		this.init(path.join(__dirname, '../configs'));
+		setTimeout(() => {
+			this.init(path.join(__dirname, '../configs'));
+		}, 1000);
 	}
 
 	async init(configDir: string) {
@@ -22,6 +25,9 @@ export class IndexerService {
 			const config = ConfigurationSchema.parse(
 				JSON.parse(await fs.readFile(configDir + '/' + configFile, 'utf8')),
 			);
+			if (config.force_delete) {
+				await this.deleteIndex(config.index_params.index);
+			}
 			await this.upsertIndex(config.index_params as IndicesCreateRequest);
 			if (config.index_on_start) {
 				await this.indexCollection(config);
@@ -35,6 +41,10 @@ export class IndexerService {
 
 	async createIndex(params: IndicesCreateRequest) {
 		return this.esClient.indices.create(params);
+	}
+
+	async deleteIndex(index: string) {
+		return this.esClient.indices.delete({ index });
 	}
 
 	async updateMapping(params: IndicesCreateRequest) {
@@ -62,7 +72,7 @@ export class IndexerService {
 		}
 	}
 
-	async getBulkIndexBody(index: string, documents: any[]) {
+	async getBulkIndexBody(index: string, documents: any[], doc_type: string) {
 		return documents.flatMap((document) => [
 			{
 				index: {
@@ -70,44 +80,54 @@ export class IndexerService {
 					_id: document._id || document.id,
 				},
 			},
-			{ ...document, _id: undefined, id: document._id || document.id },
+			{ ...document, _id: undefined, id: document._id || document.id, doc_type },
 		]);
 	}
 
-	async bulkIndexDocuments(index: string, documents: any[]) {
-		console.log(`bulkIndexDocuments: index ${index}`);
-		const bulkBody = await this.getBulkIndexBody(index, documents);
+	async bulkIndexDocuments(index: string, documents: any[], doc_type: string) {
+		const bulkBody = await this.getBulkIndexBody(index, documents, doc_type);
 		const response = await this.esClient.bulk({
 			index,
 			body: bulkBody,
 		});
-		console.log(`bulkIndexDocuments: ${bulkBody.length / 2} documents indexed`);
 		return response;
 	}
 
 	async indexCollection(config: Configuration) {
 		console.log(`indexCollection: index ${config.index_params.index}`);
 		const totalDocuments = await this.mongoService.countDocuments(config.collection, config.aggregation_pipeline);
-		console.log(`indexCollection: Total documents: ${totalDocuments}`);
-
-		let done = 0;
 		let documents = [];
 		const limiter = new Bottleneck({
 			maxConcurrent: 1,
 			minTime: 100,
 		});
+		const esLimiter = new Bottleneck({
+			maxConcurrent: 1,
+			minTime: 100,
+		});
 
-		while (true) {
-			documents = await limiter.schedule(() =>
-				this.mongoService.getDocuments(config.collection, config.aggregation_pipeline, config.batch_size, done),
-			);
-			if (documents.length === 0) {
-				console.log(`indexCollection: No more documents to index`);
-				break;
-			}
-			await this.bulkIndexDocuments(config.index_params.index, documents);
-			done += documents.length;
-			console.log(`indexCollection: Completed ${done} documents`);
+		const bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
+		bar.start(totalDocuments, 0);
+
+		for (let done = 0; done < totalDocuments; ) {
+			await limiter.schedule(async () => {
+				documents = await this.mongoService.getDocuments(
+					config.collection,
+					config.aggregation_pipeline,
+					config.batch_size,
+					done,
+				);
+				if (documents.length === 0) {
+					console.log(`indexCollection: No more documents to index`);
+					return;
+				}
+				await esLimiter.schedule(() =>
+					this.bulkIndexDocuments(config.index_params.index, documents, config.collection),
+				);
+				done += documents.length;
+				bar.update(done);
+			});
 		}
+		bar.stop();
 	}
 }
