@@ -5,6 +5,7 @@ import * as fs from 'fs/promises';
 import path from 'path';
 import { MongoService } from './mongo.service';
 import { Configuration, ConfigurationSchema } from './config';
+import Bottleneck from 'bottleneck';
 
 @Injectable()
 export class IndexerService {
@@ -91,12 +92,14 @@ export class IndexerService {
 
 		let done = 0;
 		let documents = [];
+		const limiter = new Bottleneck({
+			maxConcurrent: 1,
+			minTime: 100,
+		});
+
 		while (true) {
-			documents = await this.mongoService.getDocuments(
-				config.collection,
-				config.aggregation_pipeline,
-				config.batch_size,
-				done,
+			documents = await limiter.schedule(() =>
+				this.mongoService.getDocuments(config.collection, config.aggregation_pipeline, config.batch_size, done),
 			);
 			if (documents.length === 0) {
 				console.log(`indexCollection: No more documents to index`);

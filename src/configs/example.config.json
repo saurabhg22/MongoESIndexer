@@ -3,7 +3,7 @@
     "index_on_start": true,
     "force_delete": false,
     "aggregation_pipeline": [],
-    "batch_size": 100,
+    "batch_size": 500,
     "index_params": {
         "index": "cld_docs_dev",
         "settings": {
