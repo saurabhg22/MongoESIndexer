@@ -52,7 +52,7 @@ export class IndexerService {
 			if (config.index_on_start) {
 				await this.indexCollection(config);
 			}
-			await this.handleChangeStream(config.collection, config.index_params.index);
+			this.handleChangeStream(config.collection, config.index_params.index);
 		}
 	}
 
@@ -126,6 +126,26 @@ export class IndexerService {
 	}
 
 	async getBulkIndexBody(index: string, documents: any[], doc_type?: string) {
+		const fixIds = (doc: any) => {
+			if (!doc) return doc;
+			if (typeof doc !== 'object') return doc;
+			if (Array.isArray(doc)) {
+				doc.forEach(fixIds);
+				return doc;
+			}
+			if (doc instanceof ObjectId) {
+				return doc.toString();
+			}
+			if (doc._id) {
+				doc.id = doc._id;
+				delete doc._id;
+			}
+			for (const key in doc) {
+				doc[key] = fixIds(doc[key]);
+			}
+			return doc;
+		};
+		documents.forEach(fixIds);
 		return documents.flatMap((document) => [
 			{
 				index: {
@@ -133,7 +153,7 @@ export class IndexerService {
 					_id: document._id || document.id,
 				},
 			},
-			{ ...document, _id: undefined, id: document._id || document.id, doc_type },
+			{ ...document, doc_type },
 		]);
 	}
 
@@ -189,8 +209,8 @@ export class IndexerService {
 		const totalDocuments = await this.mongoService.countDocuments(config.collection, config.aggregation_pipeline);
 		let documents = [];
 		const limiter = new Bottleneck({
-			maxConcurrent: 1,
-			minTime: 100,
+			maxConcurrent: 10,
+			minTime: 50,
 		});
 
 		const bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);

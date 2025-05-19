@@ -7,7 +7,10 @@
 		"source.fixAll.eslint": "explicit"
 	},
 	"cSpell.words": [
+		"Analysed",
+		"asciifolding",
 		"dtos",
+		"edgegram",
 		"INITDB",
 		"kubeconfig",
 		"Langchain",
@@ -16,6 +19,7 @@
 		"nosniff",
 		"pino",
 		"Presigner",
-		"Ramesh"
+		"Ramesh",
+		"wordsdelimeter"
 	]
 }
