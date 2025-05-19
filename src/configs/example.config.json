@@ -1,7 +1,8 @@
 {
     "collection": "CldDoc",
-    "index_on_start": true,
+    "index_on_start": false,
     "force_delete": true,
+    "doc_type": "CldDoc",
     "aggregation_pipeline": [],
     "batch_size": 500,
     "index_params": {

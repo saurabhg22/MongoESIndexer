@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const ConfigurationSchema = z.object({
 	collection: z.string().describe('The collection to index'),
+	doc_type: z.string().describe('The doc type to use'),
 	batch_size: z.number().describe('The batch size to use'),
 	index_on_start: z.boolean().describe('Whether to index the collection on start'),
 	force_delete: z.boolean().describe('Whether to delete the index before indexing'),

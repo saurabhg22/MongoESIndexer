@@ -5,6 +5,19 @@ import { MongoClient } from 'mongodb';
 export class MongoService {
 	constructor(@Inject('MongoClient') private readonly mongoClient: MongoClient) {}
 
+	async getChangeStream(collectionName: string, resumeAfter: any) {
+		return this.mongoClient
+			.db()
+			.collection(collectionName)
+			.aggregate([
+				{
+					$changeStream: {
+						resumeAfter,
+					},
+				},
+			]);
+	}
+
 	async getDocuments(collectionName: string, pipeline: any[], limit = 100, skip = 0) {
 		const collection = this.mongoClient.db().collection(collectionName);
 		return collection.aggregate([...pipeline, { $skip: skip }, { $limit: limit }]).toArray();

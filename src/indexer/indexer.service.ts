@@ -7,9 +7,11 @@ import { MongoService } from './mongo.service';
 import { Configuration, ConfigurationSchema } from './config';
 import Bottleneck from 'bottleneck';
 import cliProgress from 'cli-progress';
+import { ObjectId } from 'mongodb';
 
 @Injectable()
 export class IndexerService {
+	configs: Configuration[] = [];
 	constructor(
 		private readonly mongoService: MongoService,
 		@Inject('ESClient') private readonly esClient: Client,
@@ -21,10 +23,22 @@ export class IndexerService {
 
 	async init(configDir: string) {
 		const configFiles = await fs.readdir(configDir);
+
+		await this.upsertIndex({
+			index: 'resume_tokens',
+			mappings: {
+				properties: {
+					token: { type: 'keyword' },
+					index: { type: 'keyword' },
+					doc_type: { type: 'keyword' },
+				},
+			},
+		});
 		for (const configFile of configFiles) {
 			const config = ConfigurationSchema.parse(
 				JSON.parse(await fs.readFile(configDir + '/' + configFile, 'utf8')),
 			);
+			this.configs.push(config);
 			if (config.force_delete) {
 				await this.deleteIndex(config.index_params.index);
 			}
@@ -32,7 +46,20 @@ export class IndexerService {
 			if (config.index_on_start) {
 				await this.indexCollection(config);
 			}
+			await this.handleChangeStream(config.collection);
 		}
+		const resumeTokens = await this.getResumeTokens();
+		console.log('resumeTokens', resumeTokens);
+	}
+
+	async getResumeTokens() {
+		const response = await this.esClient.search({
+			index: 'resume_tokens',
+			query: {
+				match_all: {},
+			},
+		});
+		return response.hits.hits;
 	}
 
 	async listAllIndices() {
@@ -93,6 +120,40 @@ export class IndexerService {
 		return response;
 	}
 
+	async indexOne(collection: string, id: string) {
+		const configs = this.configs.filter((config) => config.collection === collection);
+		if (configs.length === 0) {
+			throw new Error(`indexOne: config for ${collection} not found`);
+		}
+		for (const config of configs) {
+			const [document] = await this.mongoService.getDocuments(config.collection, [
+				{
+					$match: {
+						_id: new ObjectId(id),
+					},
+				},
+				...config.aggregation_pipeline,
+			]);
+			if (!document) {
+				throw new Error(`indexOne: document for ${collection} with id ${id} not found`);
+			}
+			await this.bulkIndexDocuments(config.index_params.index, [document], config.doc_type);
+		}
+	}
+
+	async deleteOne(collection: string, id: string) {
+		const configs = this.configs.filter((config) => config.collection === collection);
+		if (configs.length === 0) {
+			throw new Error(`deleteOne: config for ${collection} not found`);
+		}
+		for (const config of configs) {
+			await this.esClient.delete({
+				index: config.index_params.index,
+				id,
+			});
+		}
+	}
+
 	async indexCollection(config: Configuration) {
 		console.log(`indexCollection: index ${config.index_params.index}`);
 		const totalDocuments = await this.mongoService.countDocuments(config.collection, config.aggregation_pipeline);
@@ -122,12 +183,30 @@ export class IndexerService {
 					return;
 				}
 				await esLimiter.schedule(() =>
-					this.bulkIndexDocuments(config.index_params.index, documents, config.collection),
+					this.bulkIndexDocuments(config.index_params.index, documents, config.doc_type),
 				);
 				done += documents.length;
 				bar.update(done);
 			});
 		}
 		bar.stop();
+	}
+
+	async handleChangeStream(collectionName: string) {
+		console.log(`handleChangeStream: ${collectionName}`);
+		const changeStream = await this.mongoService.getChangeStream(collectionName, null);
+		for await (const change of changeStream) {
+			switch (change.operationType) {
+				case 'insert':
+					await this.indexOne(collectionName, change.documentKey._id);
+					break;
+				case 'update':
+					await this.indexOne(collectionName, change.documentKey._id);
+					break;
+				case 'delete':
+					await this.deleteOne(collectionName, change.documentKey._id);
+					break;
+			}
+		}
 	}
 }
