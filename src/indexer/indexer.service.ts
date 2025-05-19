@@ -33,6 +33,9 @@ export class IndexerService {
 					created: {
 						type: 'date',
 					},
+					index: {
+						type: 'keyword',
+					},
 				},
 			},
 		});
@@ -48,16 +51,27 @@ export class IndexerService {
 			if (config.index_on_start) {
 				await this.indexCollection(config);
 			}
-			await this.handleChangeStream(config.collection);
+			await this.handleChangeStream(config.collection, config.index_params.index);
 		}
 	}
 
-	async getResumeToken(collectionName: string) {
+	async getResumeToken(collectionName: string, index: string) {
 		const response = await this.esClient.search({
 			index: 'resume_tokens',
 			query: {
-				match: {
-					collection: collectionName,
+				bool: {
+					filter: [
+						{
+							term: {
+								collection: collectionName,
+							},
+						},
+						{
+							term: {
+								index,
+							},
+						},
+					],
 				},
 			},
 			sort: {
@@ -144,7 +158,11 @@ export class IndexerService {
 			if (!document) {
 				throw new Error(`indexOne: document for ${collection} with id ${id} not found`);
 			}
-			await this.bulkIndexDocuments(config.index_params.index, [document], config.doc_type);
+			const response = await this.bulkIndexDocuments(config.index_params.index, [document], config.doc_type);
+			await this.mongoService.updateOne(collection, id, {
+				lastIndexedAt: new Date(),
+				lastIndexedResponse: response.items.find((item) => item.index._id === id.toString())?.index?.result,
+			});
 		}
 	}
 
@@ -169,10 +187,6 @@ export class IndexerService {
 			maxConcurrent: 1,
 			minTime: 100,
 		});
-		const esLimiter = new Bottleneck({
-			maxConcurrent: 1,
-			minTime: 100,
-		});
 
 		const bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
 		bar.start(totalDocuments, 0);
@@ -189,9 +203,7 @@ export class IndexerService {
 					console.log(`indexCollection: No more documents to index`);
 					return;
 				}
-				await esLimiter.schedule(() =>
-					this.bulkIndexDocuments(config.index_params.index, documents, config.doc_type),
-				);
+				await this.bulkIndexDocuments(config.index_params.index, documents, config.doc_type);
 				done += documents.length;
 				bar.update(done);
 			});
@@ -199,33 +211,47 @@ export class IndexerService {
 		bar.stop();
 	}
 
-	async handleChangeStream(collectionName: string) {
+	async acknowledgeChangeEvent(collectionName: string, index: string, oldToken: any, newToken: any) {
+		await this.bulkIndexDocuments('resume_tokens', [
+			{
+				_id: oldToken ? oldToken._id : new ObjectId(),
+				token: newToken._id._data,
+				collection: collectionName,
+				index,
+				created: new Date(),
+			},
+		]);
+	}
+
+	async handleChangeStream(collectionName: string, index: string) {
 		console.log(`handleChangeStream: ${collectionName}`);
-		const resumeToken = await this.getResumeToken(collectionName);
+		const resumeToken = await this.getResumeToken(collectionName, index);
 		const changeStream = await this.mongoService.getChangeStream(collectionName, resumeToken?._source?.['token']);
 		for await (const change of changeStream) {
+			const updatedFields = Object.keys(change.updateDescription.updatedFields);
+			const isElasticSearchUpdate =
+				updatedFields.length === 2 &&
+				updatedFields.includes('lastIndexedAt') &&
+				updatedFields.includes('lastIndexedResponse');
+
+			if (isElasticSearchUpdate) {
+				await this.acknowledgeChangeEvent(collectionName, index, resumeToken, change);
+				continue;
+			}
+
+			console.log(`handleChangeStream: ${change.operationType} ${change.documentKey._id}`);
 			switch (change.operationType) {
 				case 'insert':
-					console.log(`handleChangeStream: insert ${change.documentKey._id}`);
 					await this.indexOne(collectionName, change.documentKey._id);
 					break;
 				case 'update':
-					console.log(`handleChangeStream: update ${change.documentKey._id}`);
 					await this.indexOne(collectionName, change.documentKey._id);
 					break;
 				case 'delete':
-					console.log(`handleChangeStream: delete ${change.documentKey._id}`);
 					await this.deleteOne(collectionName, change.documentKey._id);
 					break;
 			}
-			await this.bulkIndexDocuments('resume_tokens', [
-				{
-					_id: resumeToken ? resumeToken._id : new ObjectId(),
-					token: change._id._data,
-					collection: collectionName,
-					created: new Date(),
-				},
-			]);
+			await this.acknowledgeChangeEvent(collectionName, index, resumeToken, change);
 		}
 	}
 }

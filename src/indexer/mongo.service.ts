@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 
 @Injectable()
 export class MongoService {
@@ -12,7 +12,7 @@ export class MongoService {
 			.aggregate([
 				{
 					$changeStream: {
-						startAfter: { _data: resumeToken },
+						startAfter: resumeToken ? { _data: resumeToken } : undefined,
 					},
 				},
 			]);
@@ -27,5 +27,10 @@ export class MongoService {
 		const collection = this.mongoClient.db().collection(collectionName);
 		const result = await collection.aggregate([...pipeline, { $count: 'total' }]).toArray();
 		return result[0].total;
+	}
+
+	async updateOne(collectionName: string, id: string, update: any) {
+		const collection = this.mongoClient.db().collection(collectionName);
+		await collection.updateOne({ _id: new ObjectId(id) }, { $set: update });
 	}
 }
