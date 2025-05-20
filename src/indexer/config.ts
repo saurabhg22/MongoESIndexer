@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const ConfigurationSchema = z.object({
 	collection: z.string().describe('The collection to index'),
+	index_name: z.string().describe('The index to use'),
 	doc_type: z.string().describe('The doc type to use'),
 	batch_size: z.number().describe('The batch size to use'),
 	index_on_start: z.boolean().describe('Whether to index the collection on start'),
@@ -16,7 +17,6 @@ export const ConfigurationSchema = z.object({
 		),
 	aggregation_pipeline: z.array(z.any()).describe('The aggregation pipeline to use'),
 	index_params: z.object({
-		index: z.string().describe('The index to use'),
 		settings: z.record(z.any()).describe('The settings to use'),
 		mappings: z.record(z.any()).describe('The mappings to use'),
 	}),

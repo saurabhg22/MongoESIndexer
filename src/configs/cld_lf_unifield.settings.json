@@ -1,0 +1,1420 @@
+{
+    "collection": "CldLfUnified",
+    "doc_type": "CldLfUnified",
+    "index_name": "cld_lf_unified_dev",
+    "index_on_start": true,
+    "force_delete": false,
+    "batch_size": 50,
+    "skip_after_seconds": 86400,
+    "aggregation_pipeline": [
+        {
+            "$lookup": {
+                "from": "LtdDoc",
+                "foreignField": "_id",
+                "localField": "ltdDocId__ENG",
+                "as": "ltdDoc__ENG",
+                "pipeline": [
+                    {
+                        "$lookup": {
+                            "from": "Language",
+                            "localField": "languageIds",
+                            "foreignField": "_id",
+                            "as": "languages",
+                            "pipeline": [
+                                {
+                                    "$project": {
+                                        "name": 1,
+                                        "langISO": 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "$lookup": {
+                            "from": "ICCSituation",
+                            "localField": "iccSituationIds",
+                            "foreignField": "_id",
+                            "as": "iccSituations",
+                            "pipeline": [
+                                {
+                                    "$project": {
+                                        "title": 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "$lookup": {
+                            "from": "PhaseOfCase",
+                            "localField": "phaseOfCaseIds",
+                            "foreignField": "_id",
+                            "as": "phaseOfCases",
+                            "pipeline": [
+                                {
+                                    "$project": {
+                                        "title": 1,
+                                        "title_trans": 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "$project": {
+                            "id": 1,
+                            "content_type": 1,
+                            "documentType": 1,
+                            "created": 1,
+                            "updated": 1,
+                            "deleted": 1,
+                            "dateCreated": 1,
+                            "phaseOfCases": 1,
+                            "source": 1,
+                            "title": 1,
+                            "_decision": 1,
+                            "caseNumber": 1,
+                            "languages": 1,
+                            "numberOfPages": 1,
+                            "interlocutory": 1,
+                            "presidingJudge": 1,
+                            "caseName_en": 1,
+                            "iccCaseCited": 1,
+                            "slug": 1,
+                            "proxySlugs": 1,
+                            "pdfURL": 1,
+                            "iccSituations": 1,
+                            "iccSituationIds": 1,
+                            "phaseOfCaseIds": 1,
+                            "languageIds": 1,
+                            "cldJudges": 1,
+                            "typeOfDecisionEN": 1,
+                            "typeOfDecisionFR": 1,
+                            "documentTypeEN": 1,
+                            "documentTypeFR": 1,
+                            "documentSourceEN": 1,
+                            "documentSourceFR": 1,
+                            "newVersionAvailable": 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "$lookup": {
+                "from": "LtdDoc",
+                "foreignField": "_id",
+                "localField": "ltdDocId__FRA",
+                "as": "ltdDoc__FRA",
+                "pipeline": [
+                    {
+                        "$lookup": {
+                            "from": "Language",
+                            "localField": "languageIds",
+                            "foreignField": "_id",
+                            "as": "languages",
+                            "pipeline": [
+                                {
+                                    "$project": {
+                                        "name": 1,
+                                        "langISO": 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "$lookup": {
+                            "from": "ICCSituation",
+                            "localField": "iccSituationIds",
+                            "foreignField": "_id",
+                            "as": "iccSituations",
+                            "pipeline": [
+                                {
+                                    "$project": {
+                                        "title": 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "$lookup": {
+                            "from": "PhaseOfCase",
+                            "localField": "phaseOfCaseIds",
+                            "foreignField": "_id",
+                            "as": "phaseOfCases",
+                            "pipeline": [
+                                {
+                                    "$project": {
+                                        "title": 1,
+                                        "title_trans": 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "$project": {
+                            "id": 1,
+                            "content_type": 1,
+                            "documentType": 1,
+                            "created": 1,
+                            "updated": 1,
+                            "deleted": 1,
+                            "dateCreated": 1,
+                            "phaseOfCases": 1,
+                            "source": 1,
+                            "title": 1,
+                            "_decision": 1,
+                            "caseNumber": 1,
+                            "languages": 1,
+                            "numberOfPages": 1,
+                            "interlocutory": 1,
+                            "presidingJudge": 1,
+                            "caseName_en": 1,
+                            "iccCaseCited": 1,
+                            "slug": 1,
+                            "proxySlugs": 1,
+                            "pdfURL": 1,
+                            "iccSituations": 1,
+                            "iccSituationIds": 1,
+                            "phaseOfCaseIds": 1,
+                            "languageIds": 1,
+                            "cldJudges": 1,
+                            "typeOfDecisionEN": 1,
+                            "typeOfDecisionFR": 1,
+                            "documentTypeEN": 1,
+                            "documentTypeFR": 1,
+                            "documentSourceEN": 1,
+                            "documentSourceFR": 1,
+                            "newVersionAvailable": 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "$lookup": {
+                "from": "CldField",
+                "foreignField": "_id",
+                "localField": "cldFieldLanguageId__ENG",
+                "as": "cldFieldLanguage__ENG"
+            }
+        },
+        {
+            "$lookup": {
+                "from": "CldField",
+                "foreignField": "_id",
+                "localField": "cldFieldLanguageId__FRA",
+                "as": "cldFieldLanguage__FRA"
+            }
+        },
+        {
+            "$project": {
+                "id": 1,
+                "documentNumberBase": 1,
+                "Title__ENG": 1,
+                "id__ENG": 1,
+                "Appeal Doc ID__ENG": 1,
+                "Keyword__ENG": 1,
+                "keywordIds__ENG": 1,
+                "created__ENG": 1,
+                "legalFinding__ENG": 1,
+                "ltdDoc__ENG": 1,
+                "Finding__ENG": 1,
+                "ID__ENG": 1,
+                "deleted__ENG": 1,
+                "progress__ENG": 1,
+                "editorCopy__ENG": 1,
+                "Confidentiality__ENG": 1,
+                "Source__ENG": 1,
+                "Importance01__ENG": 1,
+                "dateCreated__ENG": 1,
+                "dateModified__ENG": 1,
+                "Case/Document number__ENG": 1,
+                "Document Number__ENG": 1,
+                "situationCase__ENG": 1,
+                "Title__FRA": 1,
+                "id__FRA": 1,
+                "Appeal Doc ID__FRA": 1,
+                "Keyword__FRA": 1,
+                "keywordIds__FRA": 1,
+                "created__FRA": 1,
+                "legalFinding__FRA": 1,
+                "ltdDoc__FRA": 1,
+                "Finding__FRA": 1,
+                "ID__FRA": 1,
+                "deleted__FRA": 1,
+                "progress__FRA": 1,
+                "editorCopy__FRA": 1,
+                "Confidentiality__FRA": 1,
+                "Source__FRA": 1,
+                "Importance01__FRA": 1,
+                "dateCreated__FRA": 1,
+                "dateModified__FRA": 1,
+                "Case/Document number__FRA": 1,
+                "Document Number__FRA": 1,
+                "situationCase__FRA": 1,
+                "cldFieldLanguageId__ENG": 1,
+                "cldFieldLanguageId__FRA": 1,
+                "cldFieldLanguage__ENG": 1,
+                "cldFieldLanguage__FRA": 1,
+                "cldFieldLanguage.name__en__ENG": 1,
+                "cldFieldLanguage.name__en__FRA": 1
+            }
+        }
+    ],
+    "index_params": {
+        "settings": {
+            "index.number_of_shards": 4,
+            "index.number_of_replicas": 2,
+            "analysis": {
+                "filter": {
+                    "custom_edgegram": {
+                        "type": "edgeNGram",
+                        "min_gram": "4",
+                        "max_gram": "100"
+                    },
+                    "wordsdelimeter": {
+                        "catenate_words": true,
+                        "catenate_all": true,
+                        "preserve_original": true,
+                        "type": "word_delimiter",
+                        "catenate_numbers": true
+                    },
+                    "english_stop_words": {
+                        "type": "stop",
+                        "stopwords": "_english_",
+                        "ignore_case": true
+                    }
+                },
+                "analyzer": {
+                    "autocomplete_analyzer": {
+                        "filter": [
+                            "lowercase",
+                            "wordsdelimeter"
+                        ],
+                        "type": "custom",
+                        "tokenizer": "whitespace"
+                    },
+                    "autosearch": {
+                        "filter": [
+                            "lowercase"
+                        ],
+                        "type": "custom",
+                        "tokenizer": "whitespace"
+                    },
+                    "normalize": {
+                        "filter": [
+                            "lowercase",
+                            "asciifolding"
+                        ],
+                        "type": "custom",
+                        "tokenizer": "keyword"
+                    }
+                }
+            }
+        },
+        "mappings": {
+            "dynamic": false,
+            "properties": {
+                "id": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "documentNumberBase": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "Title__ENG": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fielddata": true,
+                    "fields": {
+                        "normalize": {
+                            "type": "text",
+                            "analyzer": "normalize",
+                            "fielddata": true
+                        }
+                    }
+                },
+                "id__ENG": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "Keyword__ENG": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch"
+                },
+                "Document Number__ENG": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        },
+                        "autocomplete": {
+                            "analyzer": "autocomplete_analyzer",
+                            "type": "completion"
+                        }
+                    }
+                },
+                "Importance01__ENG": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "Confidentiality__ENG": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "deleted__ENG": {
+                    "type": "boolean",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "legalFinding__ENG": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "situationCase__ENG": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        },
+                        "autocomplete": {
+                            "type": "completion"
+                        }
+                    }
+                },
+                "editorCopy__ENG": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "progress__ENG": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "keywordIds__ENG": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ID__ENG": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "Finding__ENG": {
+                    "type": "integer",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "Appeal Doc ID__ENG": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "dateModified__ENG": {
+                    "type": "date"
+                },
+                "dateCreated__ENG": {
+                    "type": "date"
+                },
+                "Title__FRA": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fielddata": true,
+                    "fields": {
+                        "normalize": {
+                            "type": "text",
+                            "analyzer": "normalize",
+                            "fielddata": true
+                        }
+                    }
+                },
+                "id__FRA": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "Keyword__FRA": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch"
+                },
+                "Document Number__FRA": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        },
+                        "autocomplete": {
+                            "analyzer": "autocomplete_analyzer",
+                            "type": "completion"
+                        }
+                    }
+                },
+                "Importance01__FRA": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "Confidentiality__FRA": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "deleted__FRA": {
+                    "type": "boolean",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "legalFinding__FRA": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "situationCase__FRA": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        },
+                        "autocomplete": {
+                            "type": "completion"
+                        }
+                    }
+                },
+                "editorCopy__FRA": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "progress__FRA": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "keywordIds__FRA": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ID__FRA": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "Finding__FRA": {
+                    "type": "integer",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "Appeal Doc ID__FRA": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "dateModified__FRA": {
+                    "type": "date"
+                },
+                "dateCreated__FRA": {
+                    "type": "date"
+                },
+                "ltdDoc__ENG.phaseOfCases.title": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG.caseNumber": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG.caseName": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG.typeOfDecisionEN": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG.deleted": {
+                    "type": "boolean",
+                    "fields": {
+                        "keyword": {
+                            "type": "boolean"
+                        }
+                    }
+                },
+                "ltdDoc__ENG.newVersionAvailable": {
+                    "type": "boolean",
+                    "fields": {
+                        "keyword": {
+                            "type": "boolean"
+                        }
+                    }
+                },
+                "ltdDoc__ENG.documentSourceEN": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG.documentSourceFR": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG.documentTypeEN": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG.title": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG.cldJudges": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG.languages.name": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG.interlocutory": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG.presidingJudge": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG.documentType": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG.externalId": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG.source": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG.iccSituations.title": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG.caseName_en": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG.dateCreated": {
+                    "type": "date"
+                },
+                "ltdDoc__ENG.created": {
+                    "type": "date"
+                },
+                "ltdDoc__ENG.updated": {
+                    "type": "date"
+                },
+                "ltdDoc__ENG._decision.fullDocumentNumber": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        },
+                        "autocomplete": {
+                            "analyzer": "autocomplete_analyzer",
+                            "type": "completion"
+                        }
+                    }
+                },
+                "ltdDoc__ENG._decision.title": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fielddata": true,
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        },
+                        "autocomplete": {
+                            "type": "completion"
+                        },
+                        "normalize": {
+                            "type": "text",
+                            "analyzer": "normalize",
+                            "fielddata": true
+                        }
+                    }
+                },
+                "ltdDoc__ENG._decision.dateOfDocument": {
+                    "type": "date",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG._decision.situationCaseCldDatasetId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG._decision.relatedToId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG._decision.situationCodeId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG._decision.situationNameId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG._decision.situationNameCardId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG._decision.situationNameFilterId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG._decision.caseCodeId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG._decision.caseNameId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG._decision.caseNameFilterId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG._decision.phaseOfCaseId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG._decision.documentTypeId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG._decision.languageId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG._decision.documentSourceId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG._decision.typeOfDecisionId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG._decision.typeOfRecordId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__ENG._decision.presidencyReviewId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA.phaseOfCases.title": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA.caseNumber": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA.caseName": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA.typeOfDecisionEN": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA.deleted": {
+                    "type": "boolean",
+                    "fields": {
+                        "keyword": {
+                            "type": "boolean"
+                        }
+                    }
+                },
+                "ltdDoc__FRA.newVersionAvailable": {
+                    "type": "boolean",
+                    "fields": {
+                        "keyword": {
+                            "type": "boolean"
+                        }
+                    }
+                },
+                "ltdDoc__FRA.documentSourceEN": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA.documentSourceFR": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA.documentTypeEN": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA.title": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA.cldJudges": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA.languages.name": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA.interlocutory": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA.presidingJudge": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA.documentType": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA.externalId": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA.source": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA.iccSituations.title": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA.caseName_en": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA.dateCreated": {
+                    "type": "date"
+                },
+                "ltdDoc__FRA.created": {
+                    "type": "date"
+                },
+                "ltdDoc__FRA.updated": {
+                    "type": "date"
+                },
+                "ltdDoc__FRA._decision.fullDocumentNumber": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        },
+                        "autocomplete": {
+                            "analyzer": "autocomplete_analyzer",
+                            "type": "completion"
+                        }
+                    }
+                },
+                "ltdDoc__FRA._decision.title": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fielddata": true,
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        },
+                        "autocomplete": {
+                            "type": "completion"
+                        },
+                        "normalize": {
+                            "type": "text",
+                            "analyzer": "normalize",
+                            "fielddata": true
+                        }
+                    }
+                },
+                "ltdDoc__FRA._decision.dateOfDocument": {
+                    "type": "date",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA._decision.situationCaseCldDatasetId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA._decision.relatedToId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA._decision.situationCodeId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA._decision.situationNameId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA._decision.situationNameCardId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA._decision.situationNameFilterId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA._decision.caseCodeId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA._decision.caseNameId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA._decision.caseNameFilterId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA._decision.phaseOfCaseId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA._decision.documentTypeId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA._decision.languageId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA._decision.documentSourceId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA._decision.typeOfDecisionId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA._decision.typeOfRecordId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "ltdDoc__FRA._decision.presidencyReviewId": {
+                    "type": "keyword",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "cldFieldLanguage__ENG.name__en": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "cldFieldLanguage__FRA.name__en": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "cldFieldLanguage.name__en__ENG": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "cldFieldLanguage.name__en__FRA": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

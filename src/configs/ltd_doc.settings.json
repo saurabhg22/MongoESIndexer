@@ -1,6 +1,7 @@
 {
     "collection": "LtdDoc",
     "doc_type": "LtdDoc",
+    "index_name": "ltd_docs_dev",
     "index_on_start": true,
     "force_delete": false,
     "batch_size": 50,
@@ -235,7 +236,6 @@
         }
     ],
     "index_params": {
-        "index": "ltd_docs_dev",
         "settings": {
             "index.number_of_shards": 4,
             "index.number_of_replicas": 2,

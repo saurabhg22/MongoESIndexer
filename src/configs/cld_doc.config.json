@@ -1,6 +1,7 @@
 {
     "collection": "CldDoc",
     "doc_type": "CldDoc",
+    "index_name": "cld_docs_dev",
     "index_on_start": false,
     "force_delete": false,
     "batch_size": 500,
@@ -138,7 +139,6 @@
         }
     ],
     "index_params": {
-        "index": "cld_docs_dev",
         "settings": {
             "index.number_of_shards": 4,
             "index.number_of_replicas": 2,

@@ -46,7 +46,8 @@ export class IndexerService {
 			);
 			this.configs.push(config);
 			if (config.force_delete) {
-				await this.deleteIndex(config.index_params.index);
+				console.log(`deleteIndex: ${config.index_name}`);
+				await this.deleteIndex(config.index_name);
 				await this.mongoService.updateMany(
 					config.collection,
 					{},
@@ -58,7 +59,7 @@ export class IndexerService {
 			if (config.index_on_start) {
 				await this.indexCollection(config);
 			}
-			this.handleChangeStream(config.collection, config.index_params.index);
+			this.handleChangeStream(config.collection, config.index_name);
 		}
 	}
 
@@ -189,7 +190,7 @@ export class IndexerService {
 			if (!document) {
 				throw new Error(`indexOne: document for ${collection} with id ${id} not found`);
 			}
-			const response = await this.bulkIndexDocuments(config.index_params.index, [document], config.doc_type);
+			const response = await this.bulkIndexDocuments(config.index_name, [document], config.doc_type);
 			await this.mongoService.updateOne(collection, id, {
 				lastIndexedAt: new Date(),
 				lastIndexedResponse: response.items.find((item) => item.index._id === id.toString())?.index?.result,
@@ -204,14 +205,14 @@ export class IndexerService {
 		}
 		for (const config of configs) {
 			await this.esClient.delete({
-				index: config.index_params.index,
+				index: config.index_name,
 				id,
 			});
 		}
 	}
 
 	async indexCollection(config: Configuration) {
-		console.log(`indexCollection: index ${config.index_params.index}`);
+		console.log(`indexCollection: index ${config.index_name}`);
 
 		config.aggregation_pipeline.unshift({
 			$match: {
@@ -247,7 +248,7 @@ export class IndexerService {
 		});
 
 		const bar = new cliProgress.SingleBar(
-			{ format: `${config.index_params.index} [{bar}] {percentage}% | ETA: {humanized_eta} | {value}/{total}` },
+			{ format: `${config.index_name} [{bar}] {percentage}% | ETA: {humanized_eta} | {value}/{total}` },
 			cliProgress.Presets.shades_classic,
 		);
 		bar.start(totalDocuments, 0, { humanized_eta: 0 });
@@ -299,7 +300,7 @@ export class IndexerService {
 					completed = true;
 					return;
 				}
-				await this.bulkIndexDocuments(config.index_params.index, documents, config.doc_type);
+				await this.bulkIndexDocuments(config.index_name, documents, config.doc_type);
 				await this.mongoService.updateMany(
 					config.collection,
 					{ _id: { $in: documents.map((doc) => new ObjectId((doc._id || doc.id) as string)) } },
