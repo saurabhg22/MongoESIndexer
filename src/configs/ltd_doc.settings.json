@@ -1,10 +1,26 @@
 {
     "collection": "LtdDoc",
     "doc_type": "LtdDoc",
-    "index_on_start": false,
-    "force_delete": false,
-    "batch_size": 500,
+    "index_on_start": true,
+    "force_delete": true,
+    "batch_size": 100,
     "aggregation_pipeline": [
+        {
+            "$lookup": {
+                "from": "DocPage",
+                "localField": "_id",
+                "foreignField": "ltdDocId",
+                "as": "docPages",
+                "pipeline": [
+                    {
+                        "$project": {
+                            "text": 1,
+                            "page": 1
+                        }
+                    }
+                ]
+            }
+        },
         {
             "$lookup": {
                 "from": "Node",
@@ -14,10 +30,205 @@
                 "pipeline": [
                     {
                         "$project": {
+                            "parentIds": 1,
+                            "parentId": 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "$lookup": {
+                "from": "SourceType",
+                "localField": "sourceTypeIds",
+                "foreignField": "_id",
+                "as": "sourceTypes",
+                "pipeline": [
+                    {
+                        "$project": {
+                            "title": 1,
+                            "title_trans": 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "$lookup": {
+                "from": "Subject",
+                "localField": "subjectIds",
+                "foreignField": "_id",
+                "as": "subjects",
+                "pipeline": [
+                    {
+                        "$project": {
                             "title": 1
                         }
                     }
                 ]
+            }
+        },
+        {
+            "$lookup": {
+                "from": "Language",
+                "localField": "languageIds",
+                "foreignField": "_id",
+                "as": "languages",
+                "pipeline": [
+                    {
+                        "$project": {
+                            "name": 1,
+                            "langISO": 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "$lookup": {
+                "from": "JudicialDocument",
+                "localField": "judicialDocumentIds",
+                "foreignField": "_id",
+                "as": "judicialDocuments",
+                "pipeline": [
+                    {
+                        "$project": {
+                            "title": 1,
+                            "title_trans": 1,
+                            "order": 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "$lookup": {
+                "from": "ICCSituation",
+                "localField": "iccSituationIds",
+                "foreignField": "_id",
+                "as": "iccSituations",
+                "pipeline": [
+                    {
+                        "$project": {
+                            "title": 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "$lookup": {
+                "from": "PhaseOfCase",
+                "localField": "phaseOfCaseIds",
+                "foreignField": "_id",
+                "as": "phaseOfCases",
+                "pipeline": [
+                    {
+                        "$project": {
+                            "title": 1,
+                            "title_trans": 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "$lookup": {
+                "from": "LTDKeyword",
+                "localField": "keywordIds",
+                "foreignField": "_id",
+                "as": "keywords",
+                "pipeline": [
+                    {
+                        "$project": {
+                            "title": 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "$lookup": {
+                "from": "CldDoc",
+                "localField": "_id",
+                "foreignField": "ltdDocId",
+                "as": "cldDocs",
+                "pipeline": [
+                    {
+                        "$match": {
+                            "deleted": false
+                        }
+                    },
+                    {
+                        "$project": {
+                            "Legal Findings?": 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "$project": {
+                "title": 1,
+                "docPages": 1,
+                "cld": 1,
+                "sourceTypes": 1,
+                "isPublished": 1,
+                "iccSituationIds": 1,
+                "deleted": 1,
+                "keywords": 1,
+                "documentTypeEN": 1,
+                "documentTypeFR": 1,
+                "typeOfDecisionFR": 1,
+                "typeOfDecisionEN": 1,
+                "dateCreated": 1,
+                "iccSituations": 1,
+                "phaseOfCases": 1,
+                "judicialDocuments": 1,
+                "collection": 1,
+                "relatedOrganisation": 1,
+                "languages": 1,
+                "subjects": 1,
+                "id": 1,
+                "externalId": 1,
+                "source": 1,
+                "organisation": 1,
+                "orgaisationJudicialBody": 1,
+                "iccCaseCited": 1,
+                "caseName_en": 1,
+                "caseName_fr": 1,
+                "caseName": 1,
+                "documentSourceEN": 1,
+                "documentSourceFR": 1,
+                "caseNumber": 1,
+                "chamberComposition": 1,
+                "presidingJudge": 1,
+                "cldJudges": 1,
+                "isCourtRecord": 1,
+                "interlocutory": 1,
+                "_decision": 1,
+                "newVersionAvailable": 1,
+                "ifri_internal": 1,
+                "numberOfPages": 1,
+                "contentType": 1,
+                "trialOutcome": 1,
+                "judicialDocumentType": 1,
+                "courtType": 1,
+                "confidentiality": 1,
+                "importance": 1,
+                "documentType": 1,
+                "responsiblePartner": 1,
+                "preparatoryPhase": 1,
+                "created": 1,
+                "updated": 1,
+                "slug": 1,
+                "proxySlugs": 1,
+                "content_type": 1,
+                "parentId": 1,
+                "parentIds": 1,
+                "cldDocs": 1,
+                "isAnalysed": 1,
+                "decisionHasLf": 1
             }
         }
     ],

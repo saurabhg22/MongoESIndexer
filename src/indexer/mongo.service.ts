@@ -25,7 +25,9 @@ export class MongoService {
 
 	async countDocuments(collectionName: string, pipeline: any[]) {
 		const collection = this.mongoClient.db().collection(collectionName);
-		const result = await collection.aggregate([...pipeline, { $count: 'total' }]).toArray();
+		const result = await collection
+			.aggregate([...pipeline.filter((p) => !!p.$match), { $count: 'total' }])
+			.toArray();
 		return result[0].total;
 	}
 

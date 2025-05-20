@@ -210,12 +210,12 @@ export class IndexerService {
 		let documents = [];
 		const limiter = new Bottleneck({
 			maxConcurrent: 10,
-			minTime: 50,
+			// minTime: 50,
 		});
 
 		const bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
 		bar.start(totalDocuments, 0);
-
+		const startTime = new Date();
 		for (let done = 0; done < totalDocuments; ) {
 			await limiter.schedule(async () => {
 				documents = await this.mongoService.getDocuments(
@@ -230,7 +230,9 @@ export class IndexerService {
 				}
 				await this.bulkIndexDocuments(config.index_params.index, documents, config.doc_type);
 				done += documents.length;
-				bar.update(done);
+				const timeElapsed = new Date().getTime() - startTime.getTime();
+				const eta = Math.round((timeElapsed * (totalDocuments - done)) / done / 1000);
+				bar.update(done, { eta });
 			});
 		}
 		bar.stop();
