@@ -300,14 +300,18 @@ export class IndexerService {
 					completed = true;
 					return;
 				}
-				await this.bulkIndexDocuments(config.index_name, documents, config.doc_type);
-				await this.mongoService.updateMany(
+				const response = await this.bulkIndexDocuments(config.index_name, documents, config.doc_type);
+				await this.mongoService.bulkUpdate(
 					config.collection,
-					{ _id: { $in: documents.map((doc) => new ObjectId((doc._id || doc.id) as string)) } },
-					{
-						lastIndexedAt: new Date(),
-						lastIndexedResponse: 'success',
-					},
+					documents.map((doc) => ({
+						filter: { _id: new ObjectId((doc._id || doc.id) as string) },
+						update: {
+							lastIndexedAt: new Date(),
+							lastIndexedResponse: response.items.find(
+								(item) => item.index._id === (doc._id || doc.id).toString(),
+							)?.index?.result,
+						},
+					})),
 				);
 				done += documents.length;
 				const timeElapsed = new Date().getTime() - startTime.getTime();
@@ -337,9 +341,11 @@ export class IndexerService {
 		for await (const change of changeStream) {
 			const updatedFields = Object.keys(change.updateDescription.updatedFields);
 			const isElasticSearchUpdate =
-				updatedFields.length === 2 &&
-				updatedFields.includes('lastIndexedAt') &&
-				updatedFields.includes('lastIndexedResponse');
+				(updatedFields.length === 2 &&
+					updatedFields.includes('lastIndexedAt') &&
+					updatedFields.includes('lastIndexedResponse')) ||
+				(updatedFields.length === 1 &&
+					(updatedFields.includes('lastIndexedAt') || updatedFields.includes('lastIndexedResponse')));
 
 			if (isElasticSearchUpdate) {
 				await this.acknowledgeChangeEvent(collectionName, index, resumeToken, change);

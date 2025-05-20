@@ -77,4 +77,13 @@ export class MongoService {
 		const collection = this.db.collection(collectionName);
 		await collection.updateMany(filter, { $set: update });
 	}
+
+	async bulkUpdate(collectionName: string, documents: { filter: any; update: any }[]) {
+		const collection = this.db.collection(collectionName);
+		await collection.bulkWrite(
+			documents.map((doc) => ({
+				updateOne: { filter: doc.filter, update: { $set: doc.update } },
+			})),
+		);
+	}
 }
