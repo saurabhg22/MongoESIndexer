@@ -47,6 +47,11 @@ export class IndexerService {
 			this.configs.push(config);
 			if (config.force_delete) {
 				await this.deleteIndex(config.index_params.index);
+				await this.mongoService.updateMany(
+					config.collection,
+					{},
+					{ lastIndexedAt: null, lastIndexedResponse: null },
+				);
 			}
 
 			await this.upsertIndex(config.index_params as IndicesCreateRequest);
@@ -217,13 +222,22 @@ export class IndexerService {
 							$dateSubtract: {
 								startDate: '$$NOW',
 								unit: 'second',
-								amount: config.skip_after_seconds || 0,
+								amount: (!config.force_delete && config.skip_after_seconds) || 0,
 							},
 						},
 					],
 				},
 			},
 		});
+
+		const separateLookups = [];
+
+		for (const [index, pipelineStage] of config.aggregation_pipeline.entries()) {
+			if (pipelineStage.$lookup?.fetchSeparate) {
+				separateLookups.push(index);
+				delete pipelineStage.$lookup.fetchSeparate;
+			}
+		}
 
 		const totalDocuments = await this.mongoService.countDocuments(config.collection, config.aggregation_pipeline);
 		let documents = [];
@@ -239,19 +253,27 @@ export class IndexerService {
 		bar.start(totalDocuments, 0, { humanized_eta: 0 });
 		let batchSize = config.batch_size;
 		const startTime = new Date();
-		for (let done = 0; done < totalDocuments; ) {
+
+		for (let done = 0, completed = false; done < totalDocuments && !completed; ) {
 			await limiter.schedule(async () => {
 				try {
-					documents = await this.mongoService.getDocuments(
-						config.collection,
-						config.aggregation_pipeline,
-						batchSize,
-						done,
-					);
+					documents =
+						batchSize <= 5
+							? await this.mongoService.getDocumentsWithNestedPagination(
+									config.collection,
+									config.aggregation_pipeline,
+									separateLookups,
+								)
+							: await this.mongoService.getDocuments(
+									config.collection,
+									config.aggregation_pipeline,
+									batchSize,
+								);
 				} catch (error: any) {
 					if (error.codeName === 'BSONObjectTooLarge') {
 						batchSize = Math.floor(batchSize / 2);
 						console.log(`\nindexCollection: BSONObjectTooLarge, shrinking batch size to ${batchSize}`);
+
 						if (batchSize < 1) {
 							console.log(
 								`indexCollection: BSONObjectTooLarge, batch size is too small, skipping documents`,
@@ -274,6 +296,7 @@ export class IndexerService {
 				}
 				if (documents.length === 0) {
 					console.log(`indexCollection: No more documents to index`);
+					completed = true;
 					return;
 				}
 				await this.bulkIndexDocuments(config.index_params.index, documents, config.doc_type);

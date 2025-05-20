@@ -8,7 +8,7 @@ export const ConfigurationSchema = z.object({
 	force_delete: z.boolean().describe('Whether to delete the index before indexing'),
 	skip_after_seconds: z
 		.number()
-		.optional()
+		.default(0)
 		.describe(
 			'The number of seconds to skip after indexing. Default is 0. ' +
 				'This is used to avoid indexing the same documents twice. ' +
