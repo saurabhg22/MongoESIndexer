@@ -25,14 +25,20 @@ export class MongoService {
 
 	async countDocuments(collectionName: string, pipeline: any[]) {
 		const collection = this.mongoClient.db().collection(collectionName);
+		const matchPipelineIndex = pipeline.findIndex((p) => !!p.$match);
 		const result = await collection
-			.aggregate([...pipeline.filter((p) => !!p.$match), { $count: 'total' }])
+			.aggregate([...pipeline.slice(0, matchPipelineIndex + 1), { $count: 'total' }])
 			.toArray();
-		return result[0].total;
+		return result?.[0]?.total || 0;
 	}
 
 	async updateOne(collectionName: string, id: string, update: any) {
 		const collection = this.mongoClient.db().collection(collectionName);
 		await collection.updateOne({ _id: new ObjectId(id) }, { $set: update });
+	}
+
+	async updateMany(collectionName: string, filter: any, update: any) {
+		const collection = this.mongoClient.db().collection(collectionName);
+		await collection.updateMany(filter, { $set: update });
 	}
 }

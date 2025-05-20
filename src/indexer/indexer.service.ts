@@ -8,6 +8,7 @@ import { Configuration, ConfigurationSchema } from './config';
 import Bottleneck from 'bottleneck';
 import cliProgress from 'cli-progress';
 import { ObjectId } from 'mongodb';
+import humanizeDuration from 'humanize-duration';
 
 @Injectable()
 export class IndexerService {
@@ -206,33 +207,88 @@ export class IndexerService {
 
 	async indexCollection(config: Configuration) {
 		console.log(`indexCollection: index ${config.index_params.index}`);
+
+		config.aggregation_pipeline.unshift({
+			$match: {
+				$expr: {
+					$lt: [
+						'$lastIndexedAt',
+						{
+							$dateSubtract: {
+								startDate: '$$NOW',
+								unit: 'second',
+								amount: config.skip_after_seconds || 0,
+							},
+						},
+					],
+				},
+			},
+		});
+
 		const totalDocuments = await this.mongoService.countDocuments(config.collection, config.aggregation_pipeline);
 		let documents = [];
 		const limiter = new Bottleneck({
-			maxConcurrent: 10,
+			maxConcurrent: 1,
 			// minTime: 50,
 		});
 
-		const bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
-		bar.start(totalDocuments, 0);
+		const bar = new cliProgress.SingleBar(
+			{ format: `${config.index_params.index} [{bar}] {percentage}% | ETA: {humanized_eta} | {value}/{total}` },
+			cliProgress.Presets.shades_classic,
+		);
+		bar.start(totalDocuments, 0, { humanized_eta: 0 });
+		let batchSize = config.batch_size;
 		const startTime = new Date();
 		for (let done = 0; done < totalDocuments; ) {
 			await limiter.schedule(async () => {
-				documents = await this.mongoService.getDocuments(
-					config.collection,
-					config.aggregation_pipeline,
-					config.batch_size,
-					done,
-				);
+				try {
+					documents = await this.mongoService.getDocuments(
+						config.collection,
+						config.aggregation_pipeline,
+						batchSize,
+						done,
+					);
+				} catch (error: any) {
+					if (error.codeName === 'BSONObjectTooLarge') {
+						batchSize = Math.floor(batchSize / 2);
+						console.log(`\nindexCollection: BSONObjectTooLarge, shrinking batch size to ${batchSize}`);
+						if (batchSize < 1) {
+							console.log(
+								`indexCollection: BSONObjectTooLarge, batch size is too small, skipping documents`,
+							);
+							batchSize = 1;
+							done += batchSize;
+							bar.update(done);
+							return;
+						}
+						return;
+					}
+					console.error(`indexCollection: error getting documents: ${error}`);
+					done += config.batch_size;
+					bar.update(done);
+					return;
+				}
+				if (batchSize < config.batch_size) {
+					console.log(`indexCollection: resetting batch size to ${config.batch_size}`);
+					batchSize = config.batch_size;
+				}
 				if (documents.length === 0) {
 					console.log(`indexCollection: No more documents to index`);
 					return;
 				}
 				await this.bulkIndexDocuments(config.index_params.index, documents, config.doc_type);
+				await this.mongoService.updateMany(
+					config.collection,
+					{ _id: { $in: documents.map((doc) => new ObjectId((doc._id || doc.id) as string)) } },
+					{
+						lastIndexedAt: new Date(),
+						lastIndexedResponse: 'success',
+					},
+				);
 				done += documents.length;
 				const timeElapsed = new Date().getTime() - startTime.getTime();
-				const eta = Math.round((timeElapsed * (totalDocuments - done)) / done / 1000);
-				bar.update(done, { eta });
+				const eta = (totalDocuments - done) * (timeElapsed / done);
+				bar.update(done, { humanized_eta: humanizeDuration(eta, { round: true }) });
 			});
 		}
 		bar.stop();

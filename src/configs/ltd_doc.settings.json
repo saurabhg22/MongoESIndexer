@@ -3,7 +3,8 @@
     "doc_type": "LtdDoc",
     "index_on_start": true,
     "force_delete": true,
-    "batch_size": 100,
+    "batch_size": 50,
+    "skip_after_seconds": 86400,
     "aggregation_pipeline": [
         {
             "$lookup": {
