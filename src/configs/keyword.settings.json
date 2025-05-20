@@ -1,0 +1,140 @@
+{
+    "collection": "Keyword",
+    "doc_type": "Keyword",
+    "index_name": "keywords_dev",
+    "index_on_start": true,
+    "force_delete": true,
+    "batch_size": 50,
+    "skip_after_seconds": 86400,
+    "aggregation_pipeline": [
+        {
+            "$project": {
+                "id": 1,
+                "level": 1,
+                "text": 1,
+                "keyword_text__en": 1,
+                "keyword_text__fr": 1,
+                "parentIds": 1,
+                "parentId": 1,
+                "chapter_slug": 1,
+                "chapter": 1,
+                "keyword_slug": 1,
+                "type": 1,
+                "hasChildren": 1,
+                "keyword_extracted_uniqueId": 1,
+                "keywordGeneratedId": 1
+            }
+        }
+    ],
+    "index_params": {
+        "settings": {
+            "index.number_of_shards": 4,
+            "index.number_of_replicas": 2,
+            "analysis": {
+                "filter": {
+                    "custom_edgegram": {
+                        "type": "edge_ngram",
+                        "min_gram": "1",
+                        "max_gram": "100"
+                    },
+                    "wordsdelimeter": {
+                        "catenate_words": true,
+                        "catenate_all": true,
+                        "preserve_original": true,
+                        "type": "word_delimiter",
+                        "catenate_numbers": true
+                    }
+                },
+                "analyzer": {
+                    "autocomplete_analyzer": {
+                        "filter": [
+                            "lowercase",
+                            "wordsdelimeter",
+                            "custom_edgegram"
+                        ],
+                        "type": "custom",
+                        "tokenizer": "whitespace"
+                    },
+                    "autosearch": {
+                        "filter": [
+                            "lowercase",
+                            "wordsdelimeter"
+                        ],
+                        "type": "custom",
+                        "tokenizer": "whitespace"
+                    }
+                }
+            }
+        },
+        "mappings": {
+            "dynamic": false,
+            "properties": {
+                "text": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch"
+                },
+                "keyword_text__en": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch"
+                },
+                "keyword_text__fr": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch"
+                },
+                "parentId": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "level": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "doc_type": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "keywordGeneratedId": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "id": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -55,7 +55,7 @@ export class IndexerService {
 				);
 			}
 
-			await this.upsertIndex(config.index_params as IndicesCreateRequest);
+			await this.upsertIndex({ ...config.index_params, index: config.index_name } as IndicesCreateRequest);
 			if (config.index_on_start) {
 				await this.indexCollection(config);
 			}
