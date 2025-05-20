@@ -1,8 +1,9 @@
+import { Configuration } from '@/configuration';
 import { Inject, Injectable } from '@nestjs/common';
 import { Db, MongoClient, ObjectId } from 'mongodb';
 
 @Injectable()
-export class MongoService {
+export class ExtractService {
 	private db: Db;
 	constructor(@Inject('MongoClient') private readonly mongoClient: MongoClient) {
 		this.db = this.mongoClient.db();
@@ -59,7 +60,7 @@ export class MongoService {
 		return documents;
 	}
 
-	async countDocuments(collectionName: string, pipeline: any[]) {
+	async countDocuments(collectionName: string, pipeline: any[]): Promise<number> {
 		const collection = this.db.collection(collectionName);
 		const matchPipelineIndex = pipeline.findIndex((p) => !!p.$match);
 		const result = await collection
@@ -85,5 +86,58 @@ export class MongoService {
 				updateOne: { filter: doc.filter, update: { $set: doc.update } },
 			})),
 		);
+	}
+
+	private createSkipAfterExpression(config: Configuration): any[] {
+		return [
+			'$lastIndexedAt',
+			{
+				$dateSubtract: {
+					startDate: '$$NOW',
+					unit: 'second',
+					amount: (!config.force_delete && config.skip_after_seconds) || 0,
+				},
+			},
+		];
+	}
+
+	private createSkipMatchStage(skipAfter: any[], operator: '$lt' | '$gte'): any {
+		return {
+			$match: {
+				$expr: {
+					[operator]: skipAfter,
+				},
+			},
+		};
+	}
+
+	processSeparateLookups(config: Configuration): { separateLookups: number[]; pipeline: any[] } {
+		const separateLookups: number[] = [];
+		const modifiedPipeline = this.getSkippedPipeline(config);
+
+		for (const [index, pipelineStage] of modifiedPipeline.entries()) {
+			if (pipelineStage.$lookup?.fetchSeparate) {
+				separateLookups.push(index);
+				delete pipelineStage.$lookup.fetchSeparate;
+			}
+		}
+
+		return { separateLookups, pipeline: modifiedPipeline };
+	}
+
+	getSkippedPipeline(config: Configuration) {
+		const skipAfter = this.createSkipAfterExpression(config);
+		return [this.createSkipMatchStage(skipAfter, '$lt'), ...config.aggregation_pipeline];
+	}
+
+	async getIndexSkipCount(config: Configuration): Promise<number> {
+		const skipAfter = this.createSkipAfterExpression(config);
+		const pipeline = [this.createSkipMatchStage(skipAfter, '$gte'), ...config.aggregation_pipeline];
+		return await this.countDocuments(config.collection, pipeline);
+	}
+
+	async getIndexCounts(config: Configuration) {
+		const pipeline = this.getSkippedPipeline(config);
+		return this.countDocuments(config.collection, pipeline);
 	}
 }

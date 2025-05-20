@@ -1,24 +1,25 @@
 import { Module } from '@nestjs/common';
-import { IndexerService } from './indexer.service';
+import { LoadService } from './load.service';
 import { Client } from '@elastic/elasticsearch';
 import { MongoClient } from 'mongodb';
-import { MongoService } from './mongo.service';
+import { ExtractService } from './extract.service';
+import { TransformService } from './transform.service';
 
 @Module({
 	imports: [],
 	providers: [
-		MongoService,
-		IndexerService,
+		ExtractService,
+		TransformService,
+		LoadService,
 		{
 			provide: 'ESClient',
 			inject: [],
 			useFactory() {
 				return new Client({
-					// nodes: ['http://es01:9200', 'http://es02:9200', 'http://es03:9200'],
-					nodes: ['http://localhost:9200'],
+					nodes: process.env.ES_HOST?.split(',') || ['http://localhost:9200'],
 					auth: {
-						username: 'elastic',
-						password: 'elastic_password',
+						username: process.env.ES_USERNAME || 'elastic',
+						password: process.env.ES_PASSWORD || 'elastic_password',
 					},
 				});
 			},
@@ -27,8 +28,7 @@ import { MongoService } from './mongo.service';
 			provide: 'MongoClient',
 			inject: [],
 			useFactory() {
-				// return new MongoClient('mongodb://host.docker.internal:27017/ltd_new');
-				return new MongoClient('mongodb://localhost:27017/ltd_new');
+				return new MongoClient(process.env.MONGO_URI || 'mongodb://localhost:27017/ltd_new');
 			},
 		},
 	],

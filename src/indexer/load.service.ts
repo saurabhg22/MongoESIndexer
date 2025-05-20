@@ -3,19 +3,20 @@ import { Client } from '@elastic/elasticsearch';
 import { IndicesCreateRequest, IndicesPutMappingRequest } from '@elastic/elasticsearch/lib/api/types';
 import * as fs from 'fs/promises';
 import path from 'path';
-import { MongoService } from './mongo.service';
-import { Configuration, ConfigurationSchema } from './config';
+import { ExtractService } from './extract.service';
+import { Configuration, ConfigurationSchema } from '../configuration';
 import Bottleneck from 'bottleneck';
 import cliProgress from 'cli-progress';
 import { ObjectId } from 'mongodb';
 import humanizeDuration from 'humanize-duration';
 import { hasOnlyIndexingFields } from '@/utils/array-utils';
-
+import { TransformService } from './transform.service';
 @Injectable()
-export class IndexerService {
+export class LoadService {
 	configs: Configuration[] = [];
 	constructor(
-		private readonly mongoService: MongoService,
+		private readonly extractService: ExtractService,
+		private readonly transformService: TransformService,
 		@Inject('ESClient') private readonly esClient: Client,
 	) {
 		setTimeout(() => {
@@ -49,7 +50,7 @@ export class IndexerService {
 			if (config.force_delete) {
 				console.log(`deleteIndex: ${config.index_name}`);
 				await this.deleteIndex(config.index_name);
-				await this.mongoService.updateMany(
+				await this.extractService.updateMany(
 					config.collection,
 					{},
 					{ lastIndexedAt: null, lastIndexedResponse: null },
@@ -161,40 +162,8 @@ export class IndexerService {
 		}
 	}
 
-	async getBulkIndexBody(index: string, documents: any[]) {
-		const fixIds = (doc: any) => {
-			if (!doc) return doc;
-			if (typeof doc !== 'object') return doc;
-			if (Array.isArray(doc)) {
-				doc.forEach(fixIds);
-				return doc;
-			}
-			if (doc instanceof ObjectId) {
-				return doc.toString();
-			}
-			if (doc._id) {
-				doc.id = doc._id;
-				delete doc._id;
-			}
-			for (const key in doc) {
-				doc[key] = fixIds(doc[key]);
-			}
-			return doc;
-		};
-		documents.forEach(fixIds);
-		return documents.flatMap((document) => [
-			{
-				index: {
-					_index: index,
-					_id: document._id || document.id,
-				},
-			},
-			document,
-		]);
-	}
-
 	async bulkIndexDocuments(index: string, documents: any[]) {
-		const bulkBody = await this.getBulkIndexBody(index, documents);
+		const bulkBody = await this.transformService.getBulkIndexBody(index, documents);
 		const response = await this.esClient.bulk({
 			index,
 			body: bulkBody,
@@ -208,7 +177,7 @@ export class IndexerService {
 			throw new Error(`indexOne: config for ${collection} not found`);
 		}
 		for (const config of configs) {
-			const [document] = await this.mongoService.getDocuments(config.collection, [
+			const [document] = await this.extractService.getDocuments(config.collection, [
 				{
 					$match: {
 						_id: new ObjectId(id),
@@ -220,7 +189,7 @@ export class IndexerService {
 				throw new Error(`indexOne: document for ${collection} with id ${id} not found`);
 			}
 			const response = await this.bulkIndexDocuments(config.index_name, [document]);
-			await this.mongoService.updateOne(collection, id, {
+			await this.extractService.updateOne(collection, id, {
 				lastIndexedAt: new Date(),
 				lastIndexedResponse: response.items.find((item) => item.index._id === id.toString())?.index?.result,
 			});
@@ -241,47 +210,9 @@ export class IndexerService {
 	}
 
 	async indexCollection(config: Configuration, bar: cliProgress.SingleBar) {
-		const skipAfter = [
-			'$lastIndexedAt',
-			{
-				$dateSubtract: {
-					startDate: '$$NOW',
-					unit: 'second',
-					amount: (!config.force_delete && config.skip_after_seconds) || 0,
-				},
-			},
-		];
-		const pipeline = [...config.aggregation_pipeline];
-		pipeline.unshift({
-			$match: {
-				$expr: {
-					$lt: skipAfter,
-				},
-			},
-		});
-
-		const skippedCount = await this.mongoService.countDocuments(config.collection, [
-			{
-				$match: {
-					$expr: {
-						$gte: skipAfter,
-					},
-				},
-			},
-		]);
-
-		// console.log(`indexCollection: skipped ${skippedCount} documents`);
-
-		const separateLookups = [];
-
-		for (const [index, pipelineStage] of pipeline.entries()) {
-			if (pipelineStage.$lookup?.fetchSeparate) {
-				separateLookups.push(index);
-				delete pipelineStage.$lookup.fetchSeparate;
-			}
-		}
-
-		const totalDocuments = await this.mongoService.countDocuments(config.collection, pipeline);
+		const skippedCount = await this.extractService.getIndexSkipCount(config);
+		const totalDocuments = await this.extractService.getIndexCounts(config);
+		const { pipeline, separateLookups } = this.extractService.processSeparateLookups(config);
 		let documents = [];
 
 		bar.start(totalDocuments, 0, {
@@ -297,12 +228,12 @@ export class IndexerService {
 			try {
 				documents =
 					batchSize <= 5
-						? await this.mongoService.getDocumentsWithNestedPagination(
+						? await this.extractService.getDocumentsWithNestedPagination(
 								config.collection,
 								pipeline,
 								separateLookups,
 							)
-						: await this.mongoService.getDocuments(config.collection, pipeline, batchSize);
+						: await this.extractService.getDocuments(config.collection, pipeline, batchSize);
 			} catch (error: any) {
 				if (error.codeName === 'BSONObjectTooLarge') {
 					batchSize = Math.floor(batchSize / 2);
@@ -332,7 +263,7 @@ export class IndexerService {
 				return;
 			}
 			const response = await this.bulkIndexDocuments(config.index_name, documents);
-			await this.mongoService.bulkUpdate(
+			await this.extractService.bulkUpdate(
 				config.collection,
 				documents.map((doc) => ({
 					filter: { _id: new ObjectId((doc._id || doc.id) as string) },
@@ -366,7 +297,7 @@ export class IndexerService {
 
 	async handleChangeStream(collectionName: string, index: string) {
 		const resumeToken = await this.getResumeToken(collectionName, index);
-		const changeStream = await this.mongoService.getChangeStream(collectionName, resumeToken?._source?.['token']);
+		const changeStream = await this.extractService.getChangeStream(collectionName, resumeToken?._source?.['token']);
 		for await (const change of changeStream) {
 			const updatedFields = Object.keys(change.updateDescription.updatedFields);
 			if (hasOnlyIndexingFields(updatedFields)) {
