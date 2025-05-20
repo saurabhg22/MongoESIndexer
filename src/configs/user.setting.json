@@ -1,0 +1,98 @@
+{
+    "collection": "user",
+    "index_name": "user_dev",
+    "index_on_start": true,
+    "force_delete": false,
+    "batch_size": 50,
+    "skip_after_seconds": 86400,
+    "aggregation_pipeline": [
+        {
+            "$lookup": {
+                "from": "RoleMapping",
+                "localField": "roleId",
+                "foreignField": "_id",
+                "as": "roles"
+            }
+        },
+        {
+            "$project": {
+                "doc_type": "user",
+                "name": 1,
+                "email": 1,
+                "firstName": 1,
+                "lastName": 1,
+                "roles": 1
+            }
+        }
+    ],
+    "index_params": {
+        "settings": {
+            "index.number_of_shards": 4,
+            "index.number_of_replicas": 2,
+            "analysis": {
+                "filter": {
+                    "custom_edgegram": {
+                        "type": "edge_ngram",
+                        "min_gram": "1",
+                        "max_gram": "100"
+                    },
+                    "wordsdelimeter": {
+                        "catenate_words": true,
+                        "catenate_all": true,
+                        "preserve_original": true,
+                        "type": "word_delimiter",
+                        "catenate_numbers": true
+                    }
+                },
+                "analyzer": {
+                    "autocomplete_analyzer": {
+                        "filter": [
+                            "lowercase",
+                            "wordsdelimeter",
+                            "custom_edgegram"
+                        ],
+                        "type": "custom",
+                        "tokenizer": "whitespace"
+                    },
+                    "autosearch": {
+                        "filter": [
+                            "lowercase",
+                            "wordsdelimeter"
+                        ],
+                        "type": "custom",
+                        "tokenizer": "whitespace"
+                    }
+                }
+            }
+        },
+        "mappings": {
+            "dynamic": false,
+            "properties": {
+                "name": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch"
+                },
+                "email": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch"
+                },
+                "roles": {
+                    "properties": {
+                        "name": {
+                            "type": "text",
+                            "analyzer": "autocomplete_analyzer",
+                            "search_analyzer": "autosearch",
+                            "fields": {
+                                "keyword": {
+                                    "type": "keyword"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

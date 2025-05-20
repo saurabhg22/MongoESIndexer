@@ -66,7 +66,7 @@ export class IndexerService {
 			{
 				clearOnComplete: false,
 				hideCursor: true,
-				format: `[{bar}] {index_name} {percentage}% | ETA: {humanized_eta} | {value}/{total} | Skipped: {skipped}, total: {total_documents}`,
+				format: `[{bar}] {index_name} Progress: {percentage}% | {value}/{total} | ETA: {humanized_eta} | Skipped: {skipped}, Total: {total_documents}`,
 			},
 			cliProgress.Presets.shades_grey,
 		);
@@ -150,7 +150,6 @@ export class IndexerService {
 			const exists = await this.esClient.indices.exists({
 				index: params.index,
 			});
-			console.log(`upsertIndex: index ${params.index} exists: ${exists}`);
 			if (exists) {
 				console.log(`upsertIndex: index ${params.index} already exists, updating mapping`);
 				return this.updateMapping(params);
@@ -162,7 +161,7 @@ export class IndexerService {
 		}
 	}
 
-	async getBulkIndexBody(index: string, documents: any[], doc_type?: string) {
+	async getBulkIndexBody(index: string, documents: any[]) {
 		const fixIds = (doc: any) => {
 			if (!doc) return doc;
 			if (typeof doc !== 'object') return doc;
@@ -190,12 +189,12 @@ export class IndexerService {
 					_id: document._id || document.id,
 				},
 			},
-			{ ...document, doc_type },
+			document,
 		]);
 	}
 
-	async bulkIndexDocuments(index: string, documents: any[], doc_type?: string) {
-		const bulkBody = await this.getBulkIndexBody(index, documents, doc_type);
+	async bulkIndexDocuments(index: string, documents: any[]) {
+		const bulkBody = await this.getBulkIndexBody(index, documents);
 		const response = await this.esClient.bulk({
 			index,
 			body: bulkBody,
@@ -220,7 +219,7 @@ export class IndexerService {
 			if (!document) {
 				throw new Error(`indexOne: document for ${collection} with id ${id} not found`);
 			}
-			const response = await this.bulkIndexDocuments(config.index_name, [document], config.doc_type);
+			const response = await this.bulkIndexDocuments(config.index_name, [document]);
 			await this.mongoService.updateOne(collection, id, {
 				lastIndexedAt: new Date(),
 				lastIndexedResponse: response.items.find((item) => item.index._id === id.toString())?.index?.result,
@@ -252,7 +251,8 @@ export class IndexerService {
 				},
 			},
 		];
-		config.aggregation_pipeline.unshift({
+		const pipeline = [...config.aggregation_pipeline];
+		pipeline.unshift({
 			$match: {
 				$expr: {
 					$lt: skipAfter,
@@ -274,14 +274,14 @@ export class IndexerService {
 
 		const separateLookups = [];
 
-		for (const [index, pipelineStage] of config.aggregation_pipeline.entries()) {
+		for (const [index, pipelineStage] of pipeline.entries()) {
 			if (pipelineStage.$lookup?.fetchSeparate) {
 				separateLookups.push(index);
 				delete pipelineStage.$lookup.fetchSeparate;
 			}
 		}
 
-		const totalDocuments = await this.mongoService.countDocuments(config.collection, config.aggregation_pipeline);
+		const totalDocuments = await this.mongoService.countDocuments(config.collection, pipeline);
 		let documents = [];
 
 		bar.start(totalDocuments, 0, {
@@ -299,14 +299,10 @@ export class IndexerService {
 					batchSize <= 5
 						? await this.mongoService.getDocumentsWithNestedPagination(
 								config.collection,
-								config.aggregation_pipeline,
+								pipeline,
 								separateLookups,
 							)
-						: await this.mongoService.getDocuments(
-								config.collection,
-								config.aggregation_pipeline,
-								batchSize,
-							);
+						: await this.mongoService.getDocuments(config.collection, pipeline, batchSize);
 			} catch (error: any) {
 				if (error.codeName === 'BSONObjectTooLarge') {
 					batchSize = Math.floor(batchSize / 2);
@@ -335,7 +331,7 @@ export class IndexerService {
 				completed = true;
 				return;
 			}
-			const response = await this.bulkIndexDocuments(config.index_name, documents, config.doc_type);
+			const response = await this.bulkIndexDocuments(config.index_name, documents);
 			await this.mongoService.bulkUpdate(
 				config.collection,
 				documents.map((doc) => ({

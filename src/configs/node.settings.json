@@ -1,27 +1,21 @@
 {
-    "collection": "Keyword",
-    "index_name": "keywords_dev",
+    "collection": "Node",
+    "index_name": "ltd_nodes_dev",
     "index_on_start": true,
     "force_delete": false,
-    "batch_size": 50,
+    "batch_size": 500,
     "skip_after_seconds": 86400,
     "aggregation_pipeline": [
         {
             "$project": {
-                "doc_type": "Keyword",
+                "doc_type": "Node",
                 "level": 1,
+                "hidden": 1,
+                "deleted": 1,
+                "nodeType": 1,
                 "text": 1,
-                "keyword_text__en": 1,
-                "keyword_text__fr": 1,
                 "parentIds": 1,
-                "parentId": 1,
-                "chapter_slug": 1,
-                "chapter": 1,
-                "keyword_slug": 1,
-                "type": 1,
-                "hasChildren": 1,
-                "keyword_extracted_uniqueId": 1,
-                "keywordGeneratedId": 1
+                "parentId": 1
             }
         }
     ],
@@ -73,20 +67,36 @@
                     "analyzer": "autocomplete_analyzer",
                     "search_analyzer": "autosearch"
                 },
-                "keyword_text__en": {
-                    "type": "text",
-                    "analyzer": "autocomplete_analyzer",
-                    "search_analyzer": "autosearch"
-                },
-                "keyword_text__fr": {
-                    "type": "text",
-                    "analyzer": "autocomplete_analyzer",
-                    "search_analyzer": "autosearch"
-                },
                 "parentId": {
                     "type": "text",
                     "analyzer": "autocomplete_analyzer",
                     "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "nodeType": {
+                    "type": "text",
+                    "analyzer": "autocomplete_analyzer",
+                    "search_analyzer": "autosearch",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "hidden": {
+                    "type": "boolean",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "deleted": {
+                    "type": "boolean",
                     "fields": {
                         "keyword": {
                             "type": "keyword"
@@ -104,16 +114,6 @@
                     }
                 },
                 "doc_type": {
-                    "type": "text",
-                    "analyzer": "autocomplete_analyzer",
-                    "search_analyzer": "autosearch",
-                    "fields": {
-                        "keyword": {
-                            "type": "keyword"
-                        }
-                    }
-                },
-                "keywordGeneratedId": {
                     "type": "text",
                     "analyzer": "autocomplete_analyzer",
                     "search_analyzer": "autosearch",

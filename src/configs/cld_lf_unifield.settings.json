@@ -1,6 +1,5 @@
 {
     "collection": "CldLfUnified",
-    "doc_type": "CldLfUnified",
     "index_name": "cld_lf_unified_dev",
     "index_on_start": true,
     "force_delete": false,
@@ -213,7 +212,7 @@
         },
         {
             "$project": {
-                "id": 1,
+                "doc_type": "CldLfUnified",
                 "documentNumberBase": 1,
                 "Title__ENG": 1,
                 "id__ENG": 1,
