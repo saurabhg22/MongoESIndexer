@@ -16,11 +16,7 @@ import { TransformService } from './transform.service';
 			inject: [],
 			useFactory() {
 				return new Client({
-					nodes: process.env.ES_HOST?.split(',') || ['http://localhost:9200'],
-					auth: {
-						username: process.env.ES_USERNAME || 'elastic',
-						password: process.env.ES_PASSWORD || 'elastic_password',
-					},
+					nodes: process.env.ELASTICSEARCH_NODE?.split(',') || ['http://localhost:9200'],
 				});
 			},
 		},
@@ -28,7 +24,7 @@ import { TransformService } from './transform.service';
 			provide: 'MongoClient',
 			inject: [],
 			useFactory() {
-				return new MongoClient(process.env.MONGO_URI || 'mongodb://localhost:27017/ltd_new');
+				return new MongoClient(process.env.MONGODB_URI || 'mongodb://localhost:27017/ltd_new');
 			},
 		},
 	],

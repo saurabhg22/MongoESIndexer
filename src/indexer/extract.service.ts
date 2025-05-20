@@ -2,6 +2,11 @@ import { Configuration } from '@/configuration';
 import { Inject, Injectable } from '@nestjs/common';
 import { Db, MongoClient, ObjectId } from 'mongodb';
 
+/**
+ * Service responsible for extracting data from MongoDB collections.
+ * Provides functionality for change streams, document retrieval, pagination, and updates.
+ * Handles complex aggregation pipelines and nested document lookups.
+ */
 @Injectable()
 export class ExtractService {
 	private db: Db;
@@ -9,6 +14,18 @@ export class ExtractService {
 		this.db = this.mongoClient.db();
 	}
 
+	/**
+	 * Creates a MongoDB change stream for real-time monitoring of collection changes.
+	 *
+	 * Implementation:
+	 * 1. Uses MongoDB's aggregation pipeline with $changeStream stage
+	 * 2. Optionally resumes from a specific point using resumeToken
+	 * 3. Returns a cursor that can be used to iterate over changes
+	 *
+	 * @param collectionName - Name of the collection to monitor
+	 * @param resumeToken - Optional token to resume the change stream from a specific point
+	 * @returns A MongoDB change stream cursor
+	 */
 	async getChangeStream(collectionName: string, resumeToken: any) {
 		return this.db.collection(collectionName).aggregate([
 			{
@@ -19,11 +36,42 @@ export class ExtractService {
 		]);
 	}
 
+	/**
+	 * Retrieves documents from a collection using an aggregation pipeline with pagination.
+	 *
+	 * Implementation:
+	 * 1. Applies the provided aggregation pipeline
+	 * 2. Adds pagination using $skip and $limit stages
+	 * 3. Returns documents as an array
+	 *
+	 * @param collectionName - Name of the collection to query
+	 * @param pipeline - Array of aggregation pipeline stages
+	 * @param limit - Maximum number of documents to return (default: 100)
+	 * @param skip - Number of documents to skip (default: 0)
+	 * @returns Array of documents matching the pipeline criteria
+	 */
 	async getDocuments(collectionName: string, pipeline: any[], limit = 100, skip = 0) {
 		const collection = this.db.collection(collectionName);
 		return collection.aggregate([...pipeline, { $skip: skip }, { $limit: limit }]).toArray();
 	}
 
+	/**
+	 * Retrieves documents with support for nested pagination in lookup operations.
+	 * Handles complex aggregation pipelines where certain lookups need separate processing.
+	 *
+	 * Implementation:
+	 * 1. Splits the pipeline into main and nested parts
+	 * 2. Processes main pipeline with pagination
+	 * 3. Processes nested lookups separately for each document
+	 * 4. Combines results into final documents
+	 *
+	 * @param collectionName - Name of the collection to query
+	 * @param pipeline - Array of aggregation pipeline stages
+	 * @param separateLookups - Array of indices indicating which lookups should be processed separately
+	 * @param limit - Maximum number of documents to return (default: 1)
+	 * @param skip - Number of documents to skip (default: 0)
+	 * @returns Array of documents with nested lookup results
+	 */
 	async getDocumentsWithNestedPagination(
 		collectionName: string,
 		pipeline: any[],
@@ -60,6 +108,19 @@ export class ExtractService {
 		return documents;
 	}
 
+	/**
+	 * Counts the number of documents matching the aggregation pipeline criteria.
+	 * Optimizes counting by only executing necessary pipeline stages.
+	 *
+	 * Implementation:
+	 * 1. Finds the last $match stage in the pipeline
+	 * 2. Executes pipeline up to the match stage
+	 * 3. Adds $count stage to get total
+	 *
+	 * @param collectionName - Name of the collection to count documents from
+	 * @param pipeline - Array of aggregation pipeline stages
+	 * @returns The total count of matching documents
+	 */
 	async countDocuments(collectionName: string, pipeline: any[]): Promise<number> {
 		const collection = this.db.collection(collectionName);
 		const matchPipelineIndex = pipeline.findIndex((p) => !!p.$match);
@@ -69,16 +130,49 @@ export class ExtractService {
 		return result?.[0]?.total || 0;
 	}
 
+	/**
+	 * Updates a single document in the specified collection.
+	 *
+	 * Implementation:
+	 * 1. Converts string ID to ObjectId
+	 * 2. Applies update using $set operator
+	 *
+	 * @param collectionName - Name of the collection containing the document
+	 * @param id - The _id of the document to update
+	 * @param update - The update operations to apply
+	 */
 	async updateOne(collectionName: string, id: string, update: any) {
 		const collection = this.db.collection(collectionName);
 		await collection.updateOne({ _id: new ObjectId(id) }, { $set: update });
 	}
 
+	/**
+	 * Updates multiple documents in the specified collection that match the filter criteria.
+	 *
+	 * Implementation:
+	 * 1. Applies filter to match documents
+	 * 2. Updates matched documents using $set operator
+	 *
+	 * @param collectionName - Name of the collection to update documents in
+	 * @param filter - The filter criteria to match documents
+	 * @param update - The update operations to apply
+	 */
 	async updateMany(collectionName: string, filter: any, update: any) {
 		const collection = this.db.collection(collectionName);
 		await collection.updateMany(filter, { $set: update });
 	}
 
+	/**
+	 * Performs bulk update operations on multiple documents.
+	 *
+	 * Implementation:
+	 * 1. Converts array of updates to bulkWrite operations
+	 * 2. Uses updateOne operations with $set operator
+	 * 3. Executes all updates in a single bulk operation
+	 *
+	 * @param collectionName - Name of the collection to update documents in
+	 * @param documents - Array of objects containing filter and update operations
+	 */
 	async bulkUpdate(collectionName: string, documents: { filter: any; update: any }[]) {
 		const collection = this.db.collection(collectionName);
 		await collection.bulkWrite(
@@ -88,6 +182,17 @@ export class ExtractService {
 		);
 	}
 
+	/**
+	 * Creates an expression for skipping documents based on lastIndexedAt timestamp.
+	 *
+	 * Implementation:
+	 * 1. Uses $dateSubtract to calculate skip threshold
+	 * 2. Considers force_delete and skip_after_seconds settings
+	 *
+	 * @param config - Configuration object containing skip settings
+	 * @returns Array containing the skip after expression
+	 * @private
+	 */
 	private createSkipAfterExpression(config: Configuration): any[] {
 		return [
 			'$lastIndexedAt',
@@ -101,6 +206,18 @@ export class ExtractService {
 		];
 	}
 
+	/**
+	 * Creates a match stage for skipping documents based on the skip after expression.
+	 *
+	 * Implementation:
+	 * 1. Creates $match stage with $expr
+	 * 2. Uses provided operator for comparison
+	 *
+	 * @param skipAfter - Array containing the skip after expression
+	 * @param operator - The comparison operator to use ('$lt' or '$gte')
+	 * @returns Match stage object for the aggregation pipeline
+	 * @private
+	 */
 	private createSkipMatchStage(skipAfter: any[], operator: '$lt' | '$gte'): any {
 		return {
 			$match: {
@@ -111,6 +228,17 @@ export class ExtractService {
 		};
 	}
 
+	/**
+	 * Processes and identifies separate lookups in the aggregation pipeline.
+	 *
+	 * Implementation:
+	 * 1. Identifies lookups marked for separate processing
+	 * 2. Removes fetchSeparate flag from lookups
+	 * 3. Returns indices and modified pipeline
+	 *
+	 * @param config - Configuration object containing the aggregation pipeline
+	 * @returns Object containing separate lookup indices and modified pipeline
+	 */
 	processSeparateLookups(config: Configuration): { separateLookups: number[]; pipeline: any[] } {
 		const separateLookups: number[] = [];
 		const modifiedPipeline = this.getSkippedPipeline(config);
@@ -125,17 +253,49 @@ export class ExtractService {
 		return { separateLookups, pipeline: modifiedPipeline };
 	}
 
+	/**
+	 * Creates a pipeline with skip functionality based on configuration.
+	 *
+	 * Implementation:
+	 * 1. Creates skip after expression
+	 * 2. Adds skip match stage to pipeline
+	 * 3. Appends original pipeline stages
+	 *
+	 * @param config - Configuration object containing the aggregation pipeline
+	 * @returns Modified aggregation pipeline with skip functionality
+	 */
 	getSkippedPipeline(config: Configuration) {
 		const skipAfter = this.createSkipAfterExpression(config);
 		return [this.createSkipMatchStage(skipAfter, '$lt'), ...config.aggregation_pipeline];
 	}
 
+	/**
+	 * Counts the number of documents that should be skipped based on configuration.
+	 *
+	 * Implementation:
+	 * 1. Creates skip after expression
+	 * 2. Creates pipeline with skip match stage
+	 * 3. Counts matching documents
+	 *
+	 * @param config - Configuration object containing skip settings
+	 * @returns Number of documents that should be skipped
+	 */
 	async getIndexSkipCount(config: Configuration): Promise<number> {
 		const skipAfter = this.createSkipAfterExpression(config);
 		const pipeline = [this.createSkipMatchStage(skipAfter, '$gte'), ...config.aggregation_pipeline];
 		return await this.countDocuments(config.collection, pipeline);
 	}
 
+	/**
+	 * Counts the total number of documents that should be indexed based on configuration.
+	 *
+	 * Implementation:
+	 * 1. Gets skipped pipeline
+	 * 2. Counts documents matching pipeline criteria
+	 *
+	 * @param config - Configuration object containing pipeline settings
+	 * @returns Total number of documents to be indexed
+	 */
 	async getIndexCounts(config: Configuration) {
 		const pipeline = this.getSkippedPipeline(config);
 		return this.countDocuments(config.collection, pipeline);

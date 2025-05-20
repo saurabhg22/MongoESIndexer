@@ -11,6 +11,12 @@ import { ObjectId } from 'mongodb';
 import humanizeDuration from 'humanize-duration';
 import { hasOnlyIndexingFields } from '@/utils/array-utils';
 import { TransformService } from './transform.service';
+
+/**
+ * Service responsible for loading and managing data synchronization between MongoDB and Elasticsearch.
+ * Handles index creation, document indexing, change stream processing, and bulk operations.
+ * Implements OnModuleInit to initialize configurations and start indexing on application startup.
+ */
 @Injectable()
 export class LoadService implements OnModuleInit {
 	configs: Configuration[] = [];
@@ -19,10 +25,29 @@ export class LoadService implements OnModuleInit {
 		private readonly transformService: TransformService,
 		@Inject('ESClient') private readonly esClient: Client,
 	) {}
+
+	/**
+	 * Lifecycle hook that initializes the service by loading configurations from the configs directory.
+	 * Called automatically when the module is initialized.
+	 */
 	onModuleInit() {
 		this.init(path.join(__dirname, '../configs'));
 	}
 
+	/**
+	 * Initializes the service by loading and processing configuration files.
+	 * Creates necessary Elasticsearch indices and starts the indexing process.
+	 *
+	 * Implementation:
+	 * 1. Reads all configuration files from the specified directory
+	 * 2. Creates a resume_tokens index for tracking change streams
+	 * 3. Processes each configuration file
+	 * 4. Handles force delete if specified
+	 * 5. Creates or updates Elasticsearch indices
+	 * 6. Initiates the indexing process
+	 *
+	 * @param configDir - Directory path containing configuration files
+	 */
 	async init(configDir: string) {
 		const configFiles = await fs.readdir(configDir);
 
@@ -61,6 +86,16 @@ export class LoadService implements OnModuleInit {
 		await this.indexAll();
 	}
 
+	/**
+	 * Initiates the indexing process for all configured collections.
+	 * Creates progress bars for monitoring and handles concurrent indexing.
+	 *
+	 * Implementation:
+	 * 1. Creates a multi-progress bar for visual feedback
+	 * 2. Sets up a rate limiter for concurrent operations
+	 * 3. Processes each configuration in parallel
+	 * 4. Starts change stream handlers for real-time updates
+	 */
 	async indexAll() {
 		const multiBar = new cliProgress.MultiBar(
 			{
@@ -93,6 +128,14 @@ export class LoadService implements OnModuleInit {
 		multiBar.stop();
 	}
 
+	/**
+	 * Retrieves the most recent resume token for a specific collection and index.
+	 * Used to resume change streams from the last processed point.
+	 *
+	 * @param collectionName - Name of the MongoDB collection
+	 * @param index - Name of the Elasticsearch index
+	 * @returns The most recent resume token document or undefined if none exists
+	 */
 	async getResumeToken(collectionName: string, index: string) {
 		const response = await this.esClient.search({
 			index: 'resume_tokens',
@@ -121,14 +164,28 @@ export class LoadService implements OnModuleInit {
 		return token;
 	}
 
+	/**
+	 * Lists all existing Elasticsearch indices.
+	 * @returns List of all indices in the Elasticsearch cluster
+	 */
 	async listAllIndices() {
 		return this.esClient.cat.indices({ format: 'json' });
 	}
 
+	/**
+	 * Creates a new Elasticsearch index with specified parameters.
+	 * @param params - Index creation parameters including mappings and settings
+	 * @returns Response from Elasticsearch index creation operation
+	 */
 	async createIndex(params: IndicesCreateRequest) {
 		return this.esClient.indices.create(params);
 	}
 
+	/**
+	 * Deletes an Elasticsearch index if it exists.
+	 * Gracefully handles cases where the index doesn't exist.
+	 * @param index - Name of the index to delete
+	 */
 	async deleteIndex(index: string) {
 		try {
 			await this.esClient.indices.delete({ index });
@@ -137,6 +194,10 @@ export class LoadService implements OnModuleInit {
 		}
 	}
 
+	/**
+	 * Updates the mapping of an existing Elasticsearch index.
+	 * @param params - Index mapping parameters
+	 */
 	async updateMapping(params: IndicesCreateRequest) {
 		const mappingRequest: IndicesPutMappingRequest = {
 			...params.mappings,
@@ -145,6 +206,17 @@ export class LoadService implements OnModuleInit {
 		await this.esClient.indices.putMapping(mappingRequest);
 	}
 
+	/**
+	 * Creates or updates an Elasticsearch index.
+	 * If the index exists, updates its mapping; if not, creates a new index.
+	 *
+	 * Implementation:
+	 * 1. Checks if the index exists
+	 * 2. Updates mapping if index exists
+	 * 3. Creates new index if it doesn't exist
+	 *
+	 * @param params - Index creation/update parameters
+	 */
 	async upsertIndex(params: IndicesCreateRequest) {
 		try {
 			const exists = await this.esClient.indices.exists({
@@ -161,6 +233,14 @@ export class LoadService implements OnModuleInit {
 		}
 	}
 
+	/**
+	 * Performs bulk indexing of documents into Elasticsearch.
+	 * Transforms documents using TransformService before indexing.
+	 *
+	 * @param index - Target Elasticsearch index name
+	 * @param documents - Array of documents to index
+	 * @returns Response from Elasticsearch bulk operation
+	 */
 	async bulkIndexDocuments(index: string, documents: any[]) {
 		const bulkBody = await this.transformService.getBulkIndexBody(index, documents);
 		const response = await this.esClient.bulk({
@@ -170,6 +250,18 @@ export class LoadService implements OnModuleInit {
 		return response;
 	}
 
+	/**
+	 * Indexes a single document from MongoDB to Elasticsearch.
+	 * Updates the document's lastIndexedAt timestamp in MongoDB.
+	 *
+	 * Implementation:
+	 * 1. Retrieves the document from MongoDB
+	 * 2. Indexes it in Elasticsearch
+	 * 3. Updates indexing metadata in MongoDB
+	 *
+	 * @param collection - MongoDB collection name
+	 * @param id - Document ID to index
+	 */
 	async indexOne(collection: string, id: string) {
 		const configs = this.configs.filter((config) => config.collection === collection);
 		if (configs.length === 0) {
@@ -195,6 +287,11 @@ export class LoadService implements OnModuleInit {
 		}
 	}
 
+	/**
+	 * Deletes a document from all relevant Elasticsearch indices.
+	 * @param collection - MongoDB collection name
+	 * @param id - Document ID to delete
+	 */
 	async deleteOne(collection: string, id: string) {
 		const configs = this.configs.filter((config) => config.collection === collection);
 		if (configs.length === 0) {
@@ -208,6 +305,20 @@ export class LoadService implements OnModuleInit {
 		}
 	}
 
+	/**
+	 * Indexes all documents from a collection based on configuration.
+	 * Handles batch processing with progress tracking and error recovery.
+	 *
+	 * Implementation:
+	 * 1. Calculates total documents and skipped count
+	 * 2. Processes documents in batches
+	 * 3. Handles BSON size limitations
+	 * 4. Updates progress bar with ETA
+	 * 5. Updates indexing metadata in MongoDB
+	 *
+	 * @param config - Configuration for the collection
+	 * @param bar - Progress bar instance for visual feedback
+	 */
 	async indexCollection(config: Configuration, bar: cliProgress.SingleBar) {
 		const skippedCount = await this.extractService.getIndexSkipCount(config);
 		const totalDocuments = await this.extractService.getIndexCounts(config);
@@ -282,6 +393,15 @@ export class LoadService implements OnModuleInit {
 		bar.stop();
 	}
 
+	/**
+	 * Records a change stream event in the resume_tokens index.
+	 * Used to maintain the position in the change stream.
+	 *
+	 * @param collectionName - MongoDB collection name
+	 * @param index - Elasticsearch index name
+	 * @param oldToken - Previous resume token
+	 * @param newToken - New resume token
+	 */
 	async acknowledgeChangeEvent(collectionName: string, index: string, oldToken: any, newToken: any) {
 		await this.bulkIndexDocuments('resume_tokens', [
 			{
@@ -294,6 +414,21 @@ export class LoadService implements OnModuleInit {
 		]);
 	}
 
+	/**
+	 * Handles MongoDB change stream events for real-time synchronization.
+	 * Processes insert, update, and delete operations.
+	 *
+	 * Implementation:
+	 * 1. Retrieves the last resume token
+	 * 2. Creates a change stream
+	 * 3. Processes each change event
+	 * 4. Skips events that only update indexing fields
+	 * 5. Updates Elasticsearch accordingly
+	 * 6. Records the new resume token
+	 *
+	 * @param collectionName - MongoDB collection name
+	 * @param index - Elasticsearch index name
+	 */
 	async handleChangeStream(collectionName: string, index: string) {
 		const resumeToken = await this.getResumeToken(collectionName, index);
 		const changeStream = await this.extractService.getChangeStream(collectionName, resumeToken?._source?.['token']);
