@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { Client } from '@elastic/elasticsearch';
 import { IndicesCreateRequest, IndicesPutMappingRequest } from '@elastic/elasticsearch/lib/api/types';
 import * as fs from 'fs/promises';
@@ -12,16 +12,15 @@ import humanizeDuration from 'humanize-duration';
 import { hasOnlyIndexingFields } from '@/utils/array-utils';
 import { TransformService } from './transform.service';
 @Injectable()
-export class LoadService {
+export class LoadService implements OnModuleInit {
 	configs: Configuration[] = [];
 	constructor(
 		private readonly extractService: ExtractService,
 		private readonly transformService: TransformService,
 		@Inject('ESClient') private readonly esClient: Client,
-	) {
-		setTimeout(() => {
-			this.init(path.join(__dirname, '../configs'));
-		}, 1000);
+	) {}
+	onModuleInit() {
+		this.init(path.join(__dirname, '../configs'));
 	}
 
 	async init(configDir: string) {
