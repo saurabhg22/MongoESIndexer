@@ -2,9 +2,10 @@
     "collection": "CldDoc",
     "doc_type": "CldDoc",
     "index_name": "cld_docs_dev",
-    "index_on_start": false,
+    "index_on_start": true,
     "force_delete": false,
     "batch_size": 500,
+    "skip_after_seconds": 86400,
     "aggregation_pipeline": [
         {
             "$lookup": {

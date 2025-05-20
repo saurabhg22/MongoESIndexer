@@ -9,6 +9,7 @@ import Bottleneck from 'bottleneck';
 import cliProgress from 'cli-progress';
 import { ObjectId } from 'mongodb';
 import humanizeDuration from 'humanize-duration';
+import { hasOnlyIndexingFields } from '@/utils/array-utils';
 
 @Injectable()
 export class IndexerService {
@@ -56,11 +57,40 @@ export class IndexerService {
 			}
 
 			await this.upsertIndex({ ...config.index_params, index: config.index_name } as IndicesCreateRequest);
-			if (config.index_on_start) {
-				await this.indexCollection(config);
-			}
-			this.handleChangeStream(config.collection, config.index_name);
 		}
+		await this.indexAll();
+	}
+
+	async indexAll() {
+		const multiBar = new cliProgress.MultiBar(
+			{
+				clearOnComplete: false,
+				hideCursor: true,
+				format: `[{bar}] {index_name} {percentage}% | ETA: {humanized_eta} | {value}/{total} | Skipped: {skipped}, total: {total_documents}`,
+			},
+			cliProgress.Presets.shades_grey,
+		);
+		const limiter = new Bottleneck({
+			maxConcurrent: 3,
+		});
+
+		await Promise.all(
+			this.configs.map(async (config) => {
+				if (config.index_on_start) {
+					await limiter.schedule(async () => {
+						const bar = multiBar.create(200, 0, {
+							index_name: config.index_name,
+							humanized_eta: 0,
+							total_documents: 0,
+							skipped: 0,
+						});
+						await this.indexCollection(config, bar);
+					});
+				}
+				this.handleChangeStream(config.collection, config.index_name);
+			}),
+		);
+		multiBar.stop();
 	}
 
 	async getResumeToken(collectionName: string, index: string) {
@@ -211,25 +241,36 @@ export class IndexerService {
 		}
 	}
 
-	async indexCollection(config: Configuration) {
-		console.log(`indexCollection: index ${config.index_name}`);
-
+	async indexCollection(config: Configuration, bar: cliProgress.SingleBar) {
+		const skipAfter = [
+			'$lastIndexedAt',
+			{
+				$dateSubtract: {
+					startDate: '$$NOW',
+					unit: 'second',
+					amount: (!config.force_delete && config.skip_after_seconds) || 0,
+				},
+			},
+		];
 		config.aggregation_pipeline.unshift({
 			$match: {
 				$expr: {
-					$lt: [
-						'$lastIndexedAt',
-						{
-							$dateSubtract: {
-								startDate: '$$NOW',
-								unit: 'second',
-								amount: (!config.force_delete && config.skip_after_seconds) || 0,
-							},
-						},
-					],
+					$lt: skipAfter,
 				},
 			},
 		});
+
+		const skippedCount = await this.mongoService.countDocuments(config.collection, [
+			{
+				$match: {
+					$expr: {
+						$gte: skipAfter,
+					},
+				},
+			},
+		]);
+
+		// console.log(`indexCollection: skipped ${skippedCount} documents`);
 
 		const separateLookups = [];
 
@@ -242,82 +283,75 @@ export class IndexerService {
 
 		const totalDocuments = await this.mongoService.countDocuments(config.collection, config.aggregation_pipeline);
 		let documents = [];
-		const limiter = new Bottleneck({
-			maxConcurrent: 1,
-			// minTime: 50,
-		});
 
-		const bar = new cliProgress.SingleBar(
-			{ format: `${config.index_name} [{bar}] {percentage}% | ETA: {humanized_eta} | {value}/{total}` },
-			cliProgress.Presets.shades_classic,
-		);
-		bar.start(totalDocuments, 0, { humanized_eta: 0 });
+		bar.start(totalDocuments, 0, {
+			humanized_eta: 0,
+			index_name: config.index_name,
+			total_documents: totalDocuments + skippedCount,
+			skipped: skippedCount,
+		});
 		let batchSize = config.batch_size;
 		const startTime = new Date();
 
 		for (let done = 0, completed = false; done < totalDocuments && !completed; ) {
-			await limiter.schedule(async () => {
-				try {
-					documents =
-						batchSize <= 5
-							? await this.mongoService.getDocumentsWithNestedPagination(
-									config.collection,
-									config.aggregation_pipeline,
-									separateLookups,
-								)
-							: await this.mongoService.getDocuments(
-									config.collection,
-									config.aggregation_pipeline,
-									batchSize,
-								);
-				} catch (error: any) {
-					if (error.codeName === 'BSONObjectTooLarge') {
-						batchSize = Math.floor(batchSize / 2);
-						console.log(`\nindexCollection: BSONObjectTooLarge, shrinking batch size to ${batchSize}`);
-
-						if (batchSize < 1) {
-							console.log(
-								`indexCollection: BSONObjectTooLarge, batch size is too small, skipping documents`,
+			try {
+				documents =
+					batchSize <= 5
+						? await this.mongoService.getDocumentsWithNestedPagination(
+								config.collection,
+								config.aggregation_pipeline,
+								separateLookups,
+							)
+						: await this.mongoService.getDocuments(
+								config.collection,
+								config.aggregation_pipeline,
+								batchSize,
 							);
-							batchSize = 1;
-							done += batchSize;
-							bar.update(done);
-							return;
-						}
+			} catch (error: any) {
+				if (error.codeName === 'BSONObjectTooLarge') {
+					batchSize = Math.floor(batchSize / 2);
+					console.log(`\nindexCollection: BSONObjectTooLarge, shrinking batch size to ${batchSize}`);
+
+					if (batchSize < 1) {
+						console.log(`indexCollection: BSONObjectTooLarge, batch size is too small, skipping documents`);
+						batchSize = 1;
+						done += batchSize;
+						bar.update(done);
 						return;
 					}
-					console.error(`indexCollection: error getting documents: ${error}`);
-					done += config.batch_size;
-					bar.update(done);
 					return;
 				}
-				if (batchSize < config.batch_size) {
-					console.log(`indexCollection: resetting batch size to ${config.batch_size}`);
-					batchSize = config.batch_size;
-				}
-				if (documents.length === 0) {
-					console.log(`indexCollection: No more documents to index`);
-					completed = true;
-					return;
-				}
-				const response = await this.bulkIndexDocuments(config.index_name, documents, config.doc_type);
-				await this.mongoService.bulkUpdate(
-					config.collection,
-					documents.map((doc) => ({
-						filter: { _id: new ObjectId((doc._id || doc.id) as string) },
-						update: {
-							lastIndexedAt: new Date(),
-							lastIndexedResponse: response.items.find(
-								(item) => item.index._id === (doc._id || doc.id).toString(),
-							)?.index?.result,
-						},
-					})),
-				);
-				done += documents.length;
-				const timeElapsed = new Date().getTime() - startTime.getTime();
-				const eta = (totalDocuments - done) * (timeElapsed / done);
-				bar.update(done, { humanized_eta: humanizeDuration(eta, { round: true }) });
-			});
+				console.error(`indexCollection: error getting documents: ${error}`);
+				done += config.batch_size;
+				bar.update(done);
+				return;
+			}
+			if (batchSize < config.batch_size) {
+				console.log(`indexCollection: resetting batch size to ${config.batch_size}`);
+				batchSize = config.batch_size;
+			}
+			if (documents.length === 0) {
+				console.log(`indexCollection: No more documents to index`);
+				completed = true;
+				return;
+			}
+			const response = await this.bulkIndexDocuments(config.index_name, documents, config.doc_type);
+			await this.mongoService.bulkUpdate(
+				config.collection,
+				documents.map((doc) => ({
+					filter: { _id: new ObjectId((doc._id || doc.id) as string) },
+					update: {
+						lastIndexedAt: new Date(),
+						lastIndexedResponse: response.items.find(
+							(item) => item.index._id === (doc._id || doc.id).toString(),
+						)?.index?.result,
+					},
+				})),
+			);
+			done += documents.length;
+			const timeElapsed = new Date().getTime() - startTime.getTime();
+			const eta = (totalDocuments - done) * (timeElapsed / done);
+			bar.update(done, { humanized_eta: humanizeDuration(eta, { round: true }) });
 		}
 		bar.stop();
 	}
@@ -335,19 +369,11 @@ export class IndexerService {
 	}
 
 	async handleChangeStream(collectionName: string, index: string) {
-		console.log(`handleChangeStream: ${collectionName}`);
 		const resumeToken = await this.getResumeToken(collectionName, index);
 		const changeStream = await this.mongoService.getChangeStream(collectionName, resumeToken?._source?.['token']);
 		for await (const change of changeStream) {
 			const updatedFields = Object.keys(change.updateDescription.updatedFields);
-			const isElasticSearchUpdate =
-				(updatedFields.length === 2 &&
-					updatedFields.includes('lastIndexedAt') &&
-					updatedFields.includes('lastIndexedResponse')) ||
-				(updatedFields.length === 1 &&
-					(updatedFields.includes('lastIndexedAt') || updatedFields.includes('lastIndexedResponse')));
-
-			if (isElasticSearchUpdate) {
+			if (hasOnlyIndexingFields(updatedFields)) {
 				await this.acknowledgeChangeEvent(collectionName, index, resumeToken, change);
 				continue;
 			}

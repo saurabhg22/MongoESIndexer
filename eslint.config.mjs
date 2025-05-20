@@ -16,7 +16,7 @@ const compat = new FlatCompat({
 
 export default [
 	{
-		ignores: ['**/.eslintrc.js'],
+		ignores: ['**/.eslintrc.js', 'eslint.config.mjs'],
 	},
 	...compat.extends('plugin:@typescript-eslint/recommended', 'plugin:prettier/recommended'),
 	{
@@ -35,8 +35,9 @@ export default [
 			sourceType: 'module',
 
 			parserOptions: {
-				project: 'tsconfig.json',
+				project: ['tsconfig.json'],
 				tsconfigRootDir: __dirname,
+				extraFileExtensions: ['.mjs'],
 			},
 		},
 
@@ -45,7 +46,6 @@ export default [
 			'@typescript-eslint/explicit-function-return-type': 'off',
 			'@typescript-eslint/explicit-module-boundary-types': 'off',
 			'@typescript-eslint/no-explicit-any': 'off',
-			'max-len': ['error', { 'code': 120 }],
 		},
 	},
 ];
