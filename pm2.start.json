@@ -1,0 +1,14 @@
+{
+	"apps": [
+		{
+			"name": "mongo_es_indexer",
+			"script": "dist/src/main.js",
+			"env": {
+				"ENVIRONMENT": "staging",
+				"CONFIGS_DIR": "./configs",
+				"MONGODB_URI": "mongodb://localhost:27017/test",
+				"ELASTICSEARCH_NODE": "http://localhost:9200"
+			}
+		}
+	]
+}
