@@ -11,10 +11,9 @@ MongoESIndexer is a robust data pipeline application that efficiently transfers 
 - **Efficient Data Transfer**: Implements optimized data extraction from MongoDB
 - **Rate Limiting**: Uses Bottleneck for controlled data processing
 - **Progress Tracking**: Real-time progress monitoring with CLI progress bars
-- **Error Handling**: Robust error management and recovery
-- **Configurable**: Flexible configuration through environment variables
-- **Docker Support**: Containerized deployment with Docker and Docker Compose
-- **TypeScript**: Built with TypeScript for type safety and better development experience
+- **Resume**: Resume from last indexed documents. No need to reindex all documents in case of failure.
+- **Real Time Updates**: It uses mongodb change events to keep the index sync in real time.
+- **Configurable**: Flexible configuration through config files.
 
 ## Prerequisites
 
