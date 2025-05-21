@@ -31,7 +31,7 @@ export class LoadService implements OnModuleInit {
 	 * Called automatically when the module is initialized.
 	 */
 	onModuleInit() {
-		this.init(path.join(__dirname, '../configs'));
+		this.init(process.env.CONFIGS_DIR || path.join(__dirname, '../../configs'));
 	}
 
 	/**

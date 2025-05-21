@@ -122,6 +122,7 @@ The application can be configured through environment variables:
 
 - `MONGODB_URI`: MongoDB connection string
 - `ELASTICSEARCH_NODE`: Elasticsearch node URL
+- `CONFIGS_DIR`: Directory path containing the configuration files (default: './configs')
 
 ### Configuration Schema
 
