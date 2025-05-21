@@ -347,21 +347,20 @@ export class LoadService implements OnModuleInit {
 			} catch (error: any) {
 				if (error.codeName === 'BSONObjectTooLarge') {
 					batchSize = Math.floor(batchSize / 2);
-					console.log(`\nindexCollection: BSONObjectTooLarge, shrinking batch size to ${batchSize}`);
 
 					if (batchSize < 1) {
 						console.log(`indexCollection: BSONObjectTooLarge, batch size is too small, skipping documents`);
 						batchSize = 1;
 						done += batchSize;
 						bar.update(done);
-						return;
+						continue;
 					}
-					return;
+					continue;
 				}
 				console.error(`indexCollection: error getting documents: ${error}`);
 				done += config.batch_size;
 				bar.update(done);
-				return;
+				continue;
 			}
 			if (batchSize < config.batch_size) {
 				console.log(`indexCollection: resetting batch size to ${config.batch_size}`);
@@ -370,7 +369,7 @@ export class LoadService implements OnModuleInit {
 			if (documents.length === 0) {
 				console.log(`indexCollection: No more documents to index`);
 				completed = true;
-				return;
+				continue;
 			}
 			const response = await this.bulkIndexDocuments(config.index_name, documents);
 			await this.extractService.bulkUpdate(
@@ -433,8 +432,8 @@ export class LoadService implements OnModuleInit {
 		const resumeToken = await this.getResumeToken(collectionName, index);
 		const changeStream = await this.extractService.getChangeStream(collectionName, resumeToken?._source?.['token']);
 		for await (const change of changeStream) {
-			const updatedFields = Object.keys(change.updateDescription.updatedFields);
-			if (hasOnlyIndexingFields(updatedFields)) {
+			const updatedFields = Object.keys(change?.updateDescription?.updatedFields || {});
+			if (hasOnlyIndexingFields(updatedFields) && change.operationType !== 'delete') {
 				await this.acknowledgeChangeEvent(collectionName, index, resumeToken, change);
 				continue;
 			}
