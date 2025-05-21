@@ -40,6 +40,7 @@ Create a `.env` file in the root directory with the following variables:
 ```env
 MONGODB_URI=your_mongodb_connection_string
 ELASTICSEARCH_NODE=your_elasticsearch_url
+CONFIGS_DIR=Directory path containing the configuration files (default: './configs')
 ```
 
 ## Development
@@ -115,14 +116,6 @@ The application follows a modular architecture with three main services:
    - Bulk indexing
    - Rate limiting
    - Error handling and retry logic
-
-## Configuration
-
-The application can be configured through environment variables:
-
-- `MONGODB_URI`: MongoDB connection string
-- `ELASTICSEARCH_NODE`: Elasticsearch node URL
-- `CONFIGS_DIR`: Directory path containing the configuration files (default: './configs')
 
 ### Configuration Schema
 
