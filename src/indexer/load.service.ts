@@ -389,7 +389,9 @@ export class LoadService implements OnModuleInit {
 			done += documents.length;
 			const timeElapsed = new Date().getTime() - startTime.getTime();
 			const eta = (totalDocuments - done) * (timeElapsed / done);
-			console.log(`indexCollection: ${config.index_name} done: ${done} eta: ${eta}`);
+			console.log(
+				`indexCollection: ${config.index_name} done: ${done} eta: ${humanizeDuration(eta, { round: true })}`,
+			);
 			bar.update(done, { humanized_eta: humanizeDuration(eta, { round: true }) });
 		}
 		console.log(`indexCollection: ${config.index_name} doneAll totalDocuments: ${totalDocuments}`);
