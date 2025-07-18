@@ -77,7 +77,7 @@ export class LoadService implements OnModuleInit {
 				await this.extractService.updateMany(
 					config.collection,
 					{},
-					{ lastIndexedAt: null, lastIndexedResponse: null },
+					{ lastESIndexedAt: null, lastESIndexResponse: null },
 				);
 			}
 
@@ -252,7 +252,7 @@ export class LoadService implements OnModuleInit {
 
 	/**
 	 * Indexes a single document from MongoDB to Elasticsearch.
-	 * Updates the document's lastIndexedAt timestamp in MongoDB.
+	 * Updates the document's lastESIndexedAt timestamp in MongoDB.
 	 *
 	 * Implementation:
 	 * 1. Retrieves the document from MongoDB
@@ -281,8 +281,8 @@ export class LoadService implements OnModuleInit {
 			}
 			const response = await this.bulkIndexDocuments(config.index_name, [document]);
 			await this.extractService.updateOne(collection, id, {
-				lastIndexedAt: new Date(),
-				lastIndexedResponse: response.items.find((item) => item.index._id === id.toString())?.index?.result,
+				lastESIndexedAt: new Date(),
+				lastESIndexResponse: response.items.find((item) => item.index._id === id.toString())?.index?.result,
 			});
 		}
 	}
@@ -377,8 +377,8 @@ export class LoadService implements OnModuleInit {
 				documents.map((doc) => ({
 					filter: { _id: new ObjectId((doc._id || doc.id) as string) },
 					update: {
-						lastIndexedAt: new Date(),
-						lastIndexedResponse: response.items.find(
+						lastESIndexedAt: new Date(),
+						lastESIndexResponse: response.items.find(
 							(item) => item.index._id === (doc._id || doc.id).toString(),
 						)?.index?.result,
 					},

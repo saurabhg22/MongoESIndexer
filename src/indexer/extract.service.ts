@@ -183,7 +183,7 @@ export class ExtractService {
 	}
 
 	/**
-	 * Creates an expression for skipping documents based on lastIndexedAt timestamp.
+	 * Creates an expression for skipping documents based on lastESIndexedAt timestamp.
 	 *
 	 * Implementation:
 	 * 1. Uses $dateSubtract to calculate skip threshold
@@ -195,7 +195,7 @@ export class ExtractService {
 	 */
 	private createSkipAfterExpression(config: Configuration): any[] {
 		return [
-			'$lastIndexedAt',
+			'$lastESIndexedAt',
 			{
 				$dateSubtract: {
 					startDate: '$$NOW',
