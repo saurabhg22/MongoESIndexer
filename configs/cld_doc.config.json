@@ -1,6 +1,6 @@
 {
     "collection": "CldDoc",
-    "index_name": "cld_docs_dev",
+    "index_name": "cld_docs",
     "index_on_start": true,
     "force_delete": false,
     "batch_size": 500,

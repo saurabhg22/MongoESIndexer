@@ -1,6 +1,6 @@
 {
     "collection": "user",
-    "index_name": "user_dev",
+    "index_name": "user",
     "index_on_start": true,
     "force_delete": false,
     "batch_size": 50,
