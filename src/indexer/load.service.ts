@@ -331,6 +331,8 @@ export class LoadService implements OnModuleInit {
 			total_documents: totalDocuments + skippedCount,
 			skipped: skippedCount,
 		});
+		console.log(`indexCollection: ${config.index_name}`);
+
 		let batchSize = config.batch_size;
 		const startTime = new Date();
 
@@ -387,8 +389,10 @@ export class LoadService implements OnModuleInit {
 			done += documents.length;
 			const timeElapsed = new Date().getTime() - startTime.getTime();
 			const eta = (totalDocuments - done) * (timeElapsed / done);
+			console.log(`indexCollection: ${config.index_name} done: ${done} eta: ${eta}`);
 			bar.update(done, { humanized_eta: humanizeDuration(eta, { round: true }) });
 		}
+		console.log(`indexCollection: ${config.index_name} doneAll totalDocuments: ${totalDocuments}`);
 		bar.stop();
 	}
 
