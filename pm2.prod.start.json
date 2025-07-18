@@ -1,0 +1,14 @@
+{
+	"apps": [
+		{
+			"name": "mongo_es_indexer",
+			"script": "dist/main.js",
+			"env": {
+				"ENVIRONMENT": "production",
+				"CONFIGS_DIR": "./configs",
+				"MONGODB_URI": "mongodb://localhost:27017/ltd_new",
+				"ELASTICSEARCH_NODE": "https://elastic:xORkXWl1H8lvayYpQ6Y5UpQH@ltd-prod.es.eu-central-1.aws.cloud.es.io"
+			}
+		}
+	]
+}

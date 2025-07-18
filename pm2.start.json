@@ -2,7 +2,7 @@
 	"apps": [
 		{
 			"name": "mongo_es_indexer",
-			"script": "dist/src/main.js",
+			"script": "dist/main.js",
 			"env": {
 				"ENVIRONMENT": "staging",
 				"CONFIGS_DIR": "./configs",
