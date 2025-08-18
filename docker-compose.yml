@@ -3,6 +3,39 @@ include:
   
   
 services:
+
+    mongodb:
+        image: mongo:latest
+        container_name: mongodb_replica
+        command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+        ports:
+            - 27017:27017
+        environment:
+            - MONGO_INITDB_DATABASE=ltd_new
+        healthcheck:
+            test: |
+                mongosh --eval "
+                try { 
+                    rs.status(); 
+                } catch (err) { 
+                    rs.initiate({
+                        _id: 'rs0',
+                        members: [
+                            {_id: 0, host: 'localhost:27017', priority: 1}
+                        ]
+                    }); 
+                }" --quiet
+            interval: 5s
+            timeout: 30s
+            start_period: 0s
+            start_interval: 1s
+            retries: 30
+        volumes:
+            - "mongo_data:/data/db"
+        networks:
+            - mongo-es-network
+
+      
     mongo-es-indexer:
         build:
             context: .
@@ -11,12 +44,24 @@ services:
         command: ['yarn', 'start:debug']
         ports:
             - 9229:9229
+        environment:
+            - MONGODB_URI=mongodb://mongodb_replica:27017/ltd_new?replicaSet=rs0
+            - ELASTICSEARCH_NODE=http://es01:9200
+            - DOCKER_CONTAINER=true
         volumes:
             - ./src:/usr/src/app/src
-        extra_hosts:
-            - "host.docker.internal:host-gateway"
+        depends_on:
+            mongodb:
+                condition: service_healthy
+        networks:
+            - mongo-es-network
 
             
 networks:
     default:
         driver: bridge
+    mongo-es-network:
+        driver: bridge
+
+volumes:
+    mongo_data:

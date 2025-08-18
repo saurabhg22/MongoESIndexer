@@ -1,5 +1,5 @@
 import { Configuration } from '@/configuration';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Db, MongoClient, ObjectId } from 'mongodb';
 
 /**
@@ -8,10 +8,22 @@ import { Db, MongoClient, ObjectId } from 'mongodb';
  * Handles complex aggregation pipelines and nested document lookups.
  */
 @Injectable()
-export class ExtractService {
+export class ExtractService implements OnModuleDestroy {
 	private db: Db;
 	constructor(@Inject('MongoClient') private readonly mongoClient: MongoClient) {
 		this.db = this.mongoClient.db();
+	}
+
+	/**
+	 * Cleanup when the module is destroyed
+	 */
+	async onModuleDestroy() {
+		try {
+			await this.mongoClient.close();
+			console.log('MongoDB client closed successfully');
+		} catch (error) {
+			console.error('Error closing MongoDB client:', error);
+		}
 	}
 
 	/**
