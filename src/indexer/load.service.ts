@@ -11,6 +11,7 @@ import { ObjectId } from 'mongodb';
 import humanizeDuration from 'humanize-duration';
 import { hasOnlyIndexingFields } from '@/utils/array-utils';
 import { TransformService } from './transform.service';
+import cron from 'node-cron';
 
 /**
  * Service responsible for loading and managing data synchronization between MongoDB and Elasticsearch.
@@ -82,6 +83,9 @@ export class LoadService implements OnModuleInit {
 			}
 
 			await this.upsertIndex({ ...config.index_params, index: config.index_name } as IndicesCreateRequest);
+
+			// run every hour at 0 minutes
+			cron.schedule('0 * * * *', () => this.handleNewDocuments(config.collection, config.index_name));
 		}
 		await this.indexAll();
 	}
@@ -462,6 +466,41 @@ export class LoadService implements OnModuleInit {
 					break;
 			}
 			await this.acknowledgeChangeEvent(collectionName, index, resumeToken, change);
+		}
+	}
+
+	/**
+	 * Handles new documents in a collection.
+	 * Retrieves documents that have not been indexed yet and indexes them.
+	 *
+	 * @param collectionName - MongoDB collection name
+	 * @param index - Elasticsearch index name
+	 */
+
+	async handleNewDocuments(collectionName: string, index: string) {
+		console.log(`handleNewDocuments: ${collectionName} ${index}`);
+		try {
+			const documents = await this.extractService.getDocuments(
+				collectionName,
+				[
+					{
+						$match: {
+							lastESIndexedAt: { $exists: false },
+						},
+					},
+					{
+						$sort: {
+							createdAt: 1,
+						},
+					},
+				],
+				1000,
+			);
+			console.log(`handleNewDocuments: ${collectionName} ${index} ${documents.length} documents`);
+			await this.bulkIndexDocuments(index, documents);
+		} catch (error) {
+			console.error(`handleNewDocuments: ${collectionName} ${index} ${error}`);
+			console.error(error);
 		}
 	}
 }
