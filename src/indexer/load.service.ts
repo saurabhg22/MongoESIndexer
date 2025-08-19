@@ -440,7 +440,9 @@ export class LoadService implements OnModuleInit {
 
 		console.log(`Starting change stream monitoring for ${collectionName}`);
 		for await (const change of changeStream) {
-			console.log(`handleChangeStream: ${change.operationType} ${change.documentKey._id}`);
+			console.log(
+				`handleChangeStream: ${collectionName} ${index} ${change.operationType} ${change.documentKey._id}`,
+			);
 			const updatedFields = Object.keys(change?.updateDescription?.updatedFields || {});
 			if (hasOnlyIndexingFields(updatedFields) && change.operationType === 'update') {
 				console.log(`handleChangeStream skip due to only indexing fields`);
