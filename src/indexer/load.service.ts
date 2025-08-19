@@ -440,7 +440,9 @@ export class LoadService implements OnModuleInit {
 	 */
 	async handleChangeStream(collectionName: string, index: string) {
 		const resumeToken = await this.getResumeToken(collectionName, index);
-		const changeStream = await this.extractService.getChangeStream(collectionName, resumeToken?._source?.['token']);
+		const token = resumeToken?._source?.['token'];
+		console.log(`handleChangeStream: ${collectionName} ${index} token: ${token}`);
+		const changeStream = await this.extractService.getChangeStream(collectionName, token);
 
 		console.log(`Starting change stream monitoring for ${collectionName}`);
 		for await (const change of changeStream) {
