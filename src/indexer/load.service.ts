@@ -498,6 +498,10 @@ export class LoadService implements OnModuleInit {
 				],
 				1000,
 			);
+			if (documents.length === 0) {
+				console.log(`handleNewDocuments: ${collectionName} ${index} no documents to index`);
+				return;
+			}
 			console.log(`handleNewDocuments: ${collectionName} ${index} ${documents.length} documents`);
 			await this.bulkIndexDocuments(index, documents);
 		} catch (error) {
