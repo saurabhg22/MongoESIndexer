@@ -84,8 +84,8 @@ export class LoadService implements OnModuleInit {
 
 			await this.upsertIndex({ ...config.index_params, index: config.index_name } as IndicesCreateRequest);
 
-			// run every 10 minutes
-			cron.schedule('*/10 * * * *', () => this.handleNewDocuments(config.collection, config.index_name));
+			// run every 2 minutes
+			cron.schedule('*/2 * * * *', () => this.handleNewDocuments(config.collection, config.index_name));
 		}
 		await this.indexAll();
 	}
@@ -491,19 +491,24 @@ export class LoadService implements OnModuleInit {
 						},
 					},
 					{
+						$project: {
+							_id: 1,
+						},
+					},
+					{
 						$sort: {
-							createdAt: 1,
+							_id: 1,
 						},
 					},
 				],
-				10,
+				20,
 			);
 			if (documents.length === 0) {
 				console.log(`handleNewDocuments: ${collectionName} ${index} no documents to index`);
 				return;
 			}
 			console.log(`handleNewDocuments: ${collectionName} ${index} ${documents.length} documents`);
-			await this.bulkIndexDocuments(index, documents);
+			await Promise.all(documents.map((doc) => this.indexOne(collectionName, doc._id)));
 		} catch (error) {
 			console.error(`handleNewDocuments: ${collectionName} ${index} ${error}`);
 			console.error(error);
