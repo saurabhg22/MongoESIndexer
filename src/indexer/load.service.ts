@@ -86,6 +86,11 @@ export class LoadService implements OnModuleInit {
 
 			// run every 2 minutes
 			cron.schedule('*/2 * * * *', () => this.handleNewDocuments(config.collection, config.index_name));
+			if (config.update_field) {
+				cron.schedule('*/2 * * * *', () =>
+					this.handleUpdatedDocuments(config.collection, config.index_name, config.update_field),
+				);
+			}
 		}
 		await this.indexAll();
 	}
@@ -511,6 +516,44 @@ export class LoadService implements OnModuleInit {
 			await Promise.all(documents.map((doc) => this.indexOne(collectionName, doc._id)));
 		} catch (error) {
 			console.error(`handleNewDocuments: ${collectionName} ${index} ${error}`);
+			console.error(error);
+		}
+	}
+
+	async handleUpdatedDocuments(collectionName: string, index: string, updateField: string = 'updated') {
+		console.log(`handleUpdatedDocuments: ${collectionName} ${index}`);
+		try {
+			const documents = await this.extractService.getDocuments(
+				collectionName,
+				[
+					{
+						$match: {
+							$expr: {
+								$gte: [`$${updateField}`, '$lastESIndexedAt'],
+							},
+						},
+					},
+					{
+						$project: {
+							_id: 1,
+						},
+					},
+					{
+						$sort: {
+							_id: 1,
+						},
+					},
+				],
+				20,
+			);
+			if (documents.length === 0) {
+				console.log(`handleUpdatedDocuments: ${collectionName} ${index} no documents to index`);
+				return;
+			}
+			console.log(`handleUpdatedDocuments: ${collectionName} ${index} ${documents.length} documents`);
+			await Promise.all(documents.map((doc) => this.indexOne(collectionName, doc._id)));
+		} catch (error) {
+			console.error(`handleUpdatedDocuments: ${collectionName} ${index} ${error}`);
 			console.error(error);
 		}
 	}

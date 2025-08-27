@@ -19,6 +19,7 @@ export const ConfigurationSchema = z.object({
 		settings: z.record(z.any()).describe('The settings to use'),
 		mappings: z.record(z.any()).describe('The mappings to use'),
 	}),
+	update_field: z.string().optional().describe('The date field to use for updated documents'),
 });
 
 export type Configuration = z.infer<typeof ConfigurationSchema>;
