@@ -25,21 +25,35 @@ MongoESIndexer is a robust data pipeline application that efficiently transfers 
 ## Installation
 
 1. Clone the repository:
+
 ```bash
 git clone <repository-url>
 cd MongoESIndexer
 ```
 
 2. Install dependencies:
+
 ```bash
 yarn install
 ```
 
 3. Configure environment variables:
-Create a `.env` file in the root directory with the following variables:
+   Create a `.env` file in the root directory with the following variables:
+
 ```env
+# MongoDB Configuration
 MONGODB_URI=your_mongodb_connection_string
+
+# Elasticsearch Configuration
 ELASTICSEARCH_NODE=your_elasticsearch_url
+# For multiple nodes: ELASTICSEARCH_NODE=http://node1:9200,http://node2:9200
+
+# Optional: For HTTPS connections only
+ELASTICSEARCH_USERNAME=your_username
+ELASTICSEARCH_PASSWORD=your_password
+ELASTICSEARCH_CA_CERT=/path/to/http_ca.crt
+
+# Application Configuration
 CONFIGS_DIR=Directory path containing the configuration files (default: './configs')
 ```
 
@@ -64,11 +78,13 @@ yarn format
 ### Using Docker
 
 1. Build the Docker image:
+
 ```bash
 docker build -t mongo-es-indexer .
 ```
 
 2. Run using Docker Compose:
+
 ```bash
 docker-compose up -d
 ```
@@ -103,19 +119,21 @@ src/
 The application follows a modular architecture with three main services:
 
 1. **Extract Service**: Handles data extraction from MongoDB
-   - Implements cursor-based pagination
-   - Supports batch processing
-   - Includes error handling and retry mechanisms
+
+    - Implements cursor-based pagination
+    - Supports batch processing
+    - Includes error handling and retry mechanisms
 
 2. **Transform Service**: Processes and transforms data
-   - Data validation
-   - Schema mapping
-   - Data enrichment
+
+    - Data validation
+    - Schema mapping
+    - Data enrichment
 
 3. **Load Service**: Manages data loading into Elasticsearch
-   - Bulk indexing
-   - Rate limiting
-   - Error handling and retry logic
+    - Bulk indexing
+    - Rate limiting
+    - Error handling and retry logic
 
 ### Configuration Schema
 
@@ -139,42 +157,41 @@ The application uses a Zod schema for configuration validation. Here's the compl
 
 #### Configuration Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `collection` | string | The MongoDB collection to be indexed |
-| `index_name` | string | The target Elasticsearch index name |
-| `batch_size` | number | Number of documents to process in each batch |
-| `index_on_start` | boolean | If true, starts indexing immediately on application start |
-| `force_delete` | boolean | If true, deletes the existing index before creating a new one |
-| `skip_after_seconds` | number | Time window in seconds to skip re-indexing of recently indexed documents |
-| `aggregation_pipeline` | array | MongoDB aggregation pipeline for data transformation |
-| `index_params.settings` | object | Elasticsearch index settings (e.g., shards, replicas) |
-| `index_params.mappings` | object | Elasticsearch index mappings (field definitions) |
+| Parameter               | Type    | Description                                                              |
+| ----------------------- | ------- | ------------------------------------------------------------------------ |
+| `collection`            | string  | The MongoDB collection to be indexed                                     |
+| `index_name`            | string  | The target Elasticsearch index name                                      |
+| `batch_size`            | number  | Number of documents to process in each batch                             |
+| `index_on_start`        | boolean | If true, starts indexing immediately on application start                |
+| `force_delete`          | boolean | If true, deletes the existing index before creating a new one            |
+| `skip_after_seconds`    | number  | Time window in seconds to skip re-indexing of recently indexed documents |
+| `aggregation_pipeline`  | array   | MongoDB aggregation pipeline for data transformation                     |
+| `index_params.settings` | object  | Elasticsearch index settings (e.g., shards, replicas)                    |
+| `index_params.mappings` | object  | Elasticsearch index mappings (field definitions)                         |
 
 Example configuration:
+
 ```json
 {
-  "collection": "users",
-  "index_name": "users_index",
-  "batch_size": 1000,
-  "index_on_start": true,
-  "force_delete": false,
-  "skip_after_seconds": 3600,
-  "aggregation_pipeline": [
-    { "$match": { "status": "active" } }
-  ],
-  "index_params": {
-    "settings": {
-      "number_of_shards": 3,
-      "number_of_replicas": 1
-    },
-    "mappings": {
-      "properties": {
-        "name": { "type": "text" },
-        "age": { "type": "integer" }
-      }
-    }
-  }
+	"collection": "users",
+	"index_name": "users_index",
+	"batch_size": 1000,
+	"index_on_start": true,
+	"force_delete": false,
+	"skip_after_seconds": 3600,
+	"aggregation_pipeline": [{ "$match": { "status": "active" } }],
+	"index_params": {
+		"settings": {
+			"number_of_shards": 3,
+			"number_of_replicas": 1
+		},
+		"mappings": {
+			"properties": {
+				"name": { "type": "text" },
+				"age": { "type": "integer" }
+			}
+		}
+	}
 }
 ```
 

@@ -16,12 +16,31 @@ import * as fs from 'fs';
 			provide: 'ESClient',
 			inject: [],
 			useFactory() {
-				return new Client({
-					caFingerprint: process.env.ELASTICSEARCH_CA_FINGERPRINT
-						? fs.readFileSync(process.env.ELASTICSEARCH_CA_FINGERPRINT, 'utf8')
-						: undefined,
-					nodes: process.env.ELASTICSEARCH_NODE?.split(',') || ['http://localhost:9200'],
-				});
+				const nodes = process.env.ELASTICSEARCH_NODE?.split(',') || ['http://localhost:9200'];
+				const isHttps = nodes.some((node) => node.startsWith('https://'));
+
+				const clientConfig: any = {
+					nodes,
+				};
+
+				// Add basic auth if provided (works for both HTTP and HTTPS)
+				if (process.env.ELASTICSEARCH_USERNAME && process.env.ELASTICSEARCH_PASSWORD) {
+					clientConfig.auth = {
+						username: process.env.ELASTICSEARCH_USERNAME,
+						password: process.env.ELASTICSEARCH_PASSWORD,
+					};
+				}
+
+				// Only add SSL/TLS configuration for HTTPS connections
+				if (isHttps) {
+					// Add SSL options if needed
+					if (process.env.ELASTICSEARCH_CA_CERT) {
+						clientConfig.tls = {
+							ca: fs.readFileSync(process.env.ELASTICSEARCH_CA_CERT, 'utf8'),
+						};
+					}
+				}
+				return new Client(clientConfig);
 			},
 		},
 		{
