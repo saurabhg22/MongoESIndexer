@@ -16,6 +16,7 @@ import { TransformService } from './transform.service';
 			inject: [],
 			useFactory() {
 				return new Client({
+					caFingerprint: process.env.ELASTICSEARCH_CA_FINGERPRINT,
 					nodes: process.env.ELASTICSEARCH_NODE?.split(',') || ['http://localhost:9200'],
 				});
 			},
