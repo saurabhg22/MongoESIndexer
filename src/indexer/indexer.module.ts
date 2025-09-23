@@ -4,6 +4,7 @@ import { Client } from '@elastic/elasticsearch';
 import { MongoClient } from 'mongodb';
 import { ExtractService } from './extract.service';
 import { TransformService } from './transform.service';
+import * as fs from 'fs';
 
 @Module({
 	imports: [],
@@ -16,7 +17,9 @@ import { TransformService } from './transform.service';
 			inject: [],
 			useFactory() {
 				return new Client({
-					caFingerprint: process.env.ELASTICSEARCH_CA_FINGERPRINT,
+					caFingerprint: process.env.ELASTICSEARCH_CA_FINGERPRINT
+						? fs.readFileSync(process.env.ELASTICSEARCH_CA_FINGERPRINT, 'utf8')
+						: undefined,
 					nodes: process.env.ELASTICSEARCH_NODE?.split(',') || ['http://localhost:9200'],
 				});
 			},
