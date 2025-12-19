@@ -358,7 +358,6 @@ export class LoadService implements OnModuleInit {
 		let batchSize = config.batch_size;
 		const startTime = new Date();
 
-		const uniqueIds = new Set<string>();
 		for (let done = 0, completed = false; done < totalDocuments && !completed; ) {
 			try {
 				documents = await this.extractService.getDocumentsWithNestedPagination(
@@ -367,10 +366,6 @@ export class LoadService implements OnModuleInit {
 					separateLookups,
 					batchSize,
 				);
-				for (const document of documents) {
-					uniqueIds.add(document._id.toString());
-				}
-				console.log(`indexCollection: uniqueIds: ${uniqueIds.size}`);
 			} catch (error: any) {
 				if (error.codeName === 'BSONObjectTooLarge') {
 					batchSize = Math.floor(batchSize / 2);

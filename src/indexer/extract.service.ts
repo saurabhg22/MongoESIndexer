@@ -126,7 +126,7 @@ export class ExtractService implements OnModuleDestroy {
 				`getDocumentsWithNestedPagination: error getting documents with nested pagination for ${collectionName}: ${error}`,
 			);
 			console.error(error);
-			throw error;
+			return [];
 		}
 	}
 
