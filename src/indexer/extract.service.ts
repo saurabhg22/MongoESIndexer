@@ -33,6 +33,7 @@ export class ExtractService implements OnModuleDestroy {
 	 * 1. Uses MongoDB's aggregation pipeline with $changeStream stage
 	 * 2. Optionally resumes from a specific point using resumeToken
 	 * 3. Returns a cursor that can be used to iterate over changes
+	 * 4. Uses updateDescription to detect field changes (avoids BSONObjectTooLarge errors)
 	 *
 	 * @param collectionName - Name of the collection to monitor
 	 * @param resumeToken - Optional token to resume the change stream from a specific point
@@ -143,6 +144,20 @@ export class ExtractService implements OnModuleDestroy {
 	}
 
 	/**
+	 * Checks if a document exists in the collection.
+	 *
+	 * @param collectionName - Name of the collection to check
+	 * @param id - The _id of the document (string or ObjectId)
+	 * @returns True if document exists, false otherwise
+	 */
+	async documentExists(collectionName: string, id: string | ObjectId): Promise<boolean> {
+		const collection = this.db.collection(collectionName);
+		const objectId = id instanceof ObjectId ? id : new ObjectId(id);
+		const doc = await collection.findOne({ _id: objectId }, { projection: { _id: 1 } });
+		return !!doc;
+	}
+
+	/**
 	 * Updates a single document in the specified collection.
 	 *
 	 * Implementation:
@@ -238,6 +253,23 @@ export class ExtractService implements OnModuleDestroy {
 				},
 			},
 		};
+	}
+
+	/**
+	 * Removes fetchSeparate flags from lookup stages in the pipeline.
+	 * This is used when you need to clean the pipeline without adding skip logic.
+	 *
+	 * @param pipeline - Aggregation pipeline to process
+	 * @returns Modified pipeline with fetchSeparate flags removed
+	 */
+	removeFetchSeparateFlags(pipeline: any[]): any[] {
+		const modifiedPipeline = JSON.parse(JSON.stringify(pipeline)); // Deep clone to avoid mutating original
+		for (const pipelineStage of modifiedPipeline) {
+			if (pipelineStage.$lookup?.fetchSeparate) {
+				delete pipelineStage.$lookup.fetchSeparate;
+			}
+		}
+		return modifiedPipeline;
 	}
 
 	/**
