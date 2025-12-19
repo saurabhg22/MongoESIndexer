@@ -2,7 +2,7 @@
     "collection": "Keyword",
     "index_name": "keywords",
     "index_on_start": true,
-    "force_delete": true,
+    "force_delete": false,
     "batch_size": 50,
     "skip_after_seconds": 86400,
     "update_field": "updated",
