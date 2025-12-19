@@ -43,16 +43,16 @@ import * as fs from 'fs';
 				return new Client(clientConfig);
 			},
 		},
-	{
-		provide: 'MongoClient',
-		inject: [],
-		async useFactory() {
-			const client = new MongoClient(process.env.MONGODB_URI || 'mongodb://localhost:27017/ltd_new');
-			await client.connect();
-			console.log('MongoDB client connected successfully');
-			return client;
+		{
+			provide: 'MongoClient',
+			inject: [],
+			async useFactory() {
+				const client = new MongoClient(process.env.MONGODB_URI || 'mongodb://localhost:27017/ltd_new');
+				await client.connect();
+				console.log('MongoDB client connected successfully');
+				return client;
+			},
 		},
-	},
 	],
 })
 export class IndexerModule {}
