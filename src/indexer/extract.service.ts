@@ -1,6 +1,7 @@
 import { Configuration } from '@/configuration';
 import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Db, MongoClient, ObjectId } from 'mongodb';
+import _ from 'lodash';
 
 /**
  * Service responsible for extracting data from MongoDB collections.
@@ -92,33 +93,41 @@ export class ExtractService implements OnModuleDestroy {
 		limit = 1,
 		skip = 0,
 	) {
-		const collection = this.db.collection(collectionName);
-		const strippedPipeline = [];
-		const nestedPipeline = [];
-		for (const [index, pipelineStage] of pipeline.entries()) {
-			const nestedPaginationIndex = separateLookups.findIndex((p) => p === index);
-			if (nestedPaginationIndex === -1) {
-				strippedPipeline.push(pipelineStage);
-			} else {
-				nestedPipeline.push(pipelineStage);
+		try {
+			const collection = this.db.collection(collectionName);
+			const strippedPipeline = [];
+			const nestedPipeline = [];
+			for (const [index, pipelineStage] of pipeline.entries()) {
+				const nestedPaginationIndex = separateLookups.findIndex((p) => p === index);
+				if (nestedPaginationIndex === -1) {
+					strippedPipeline.push(pipelineStage);
+				} else {
+					nestedPipeline.push(pipelineStage);
+				}
 			}
-		}
-		const documents = await collection
-			.aggregate([...strippedPipeline, { $skip: skip }, { $limit: limit }])
-			.toArray();
-		for (const { $lookup } of nestedPipeline) {
-			for (const document of documents) {
-				const nestedDocuments = await this.db
-					.collection($lookup.from)
-					.aggregate([
-						{ $match: { [$lookup.foreignField]: document[$lookup.localField] } },
-						...($lookup.pipeline || []),
-					])
-					.toArray();
-				document[$lookup.as] = nestedDocuments;
+			const documents = await collection
+				.aggregate([...strippedPipeline, { $skip: skip }, { $limit: limit }])
+				.toArray();
+			for (const { $lookup } of nestedPipeline) {
+				for (const document of documents) {
+					const nestedDocuments = await this.db
+						.collection($lookup.from)
+						.aggregate([
+							{ $match: { [$lookup.foreignField]: document[$lookup.localField] } },
+							...($lookup.pipeline || []),
+						])
+						.toArray();
+					document[$lookup.as] = nestedDocuments;
+				}
 			}
+			return documents;
+		} catch (error) {
+			console.error(
+				`getDocumentsWithNestedPagination: error getting documents with nested pagination for ${collectionName}: ${error}`,
+			);
+			console.error(error);
+			throw error;
 		}
-		return documents;
 	}
 
 	/**
@@ -227,7 +236,7 @@ export class ExtractService implements OnModuleDestroy {
 				$dateSubtract: {
 					startDate: '$$NOW',
 					unit: 'second',
-					amount: (!config.force_delete && config.skip_after_seconds) || 0,
+					amount: (!config.force_delete && config.skip_after_seconds) || 60 * 60 * 24 * 365 * 10, // 10 years
 				},
 			},
 		];
@@ -256,23 +265,6 @@ export class ExtractService implements OnModuleDestroy {
 	}
 
 	/**
-	 * Removes fetchSeparate flags from lookup stages in the pipeline.
-	 * This is used when you need to clean the pipeline without adding skip logic.
-	 *
-	 * @param pipeline - Aggregation pipeline to process
-	 * @returns Modified pipeline with fetchSeparate flags removed
-	 */
-	removeFetchSeparateFlags(pipeline: any[]): any[] {
-		const modifiedPipeline = JSON.parse(JSON.stringify(pipeline)); // Deep clone to avoid mutating original
-		for (const pipelineStage of modifiedPipeline) {
-			if (pipelineStage.$lookup?.fetchSeparate) {
-				delete pipelineStage.$lookup.fetchSeparate;
-			}
-		}
-		return modifiedPipeline;
-	}
-
-	/**
 	 * Processes and identifies separate lookups in the aggregation pipeline.
 	 *
 	 * Implementation:
@@ -283,18 +275,18 @@ export class ExtractService implements OnModuleDestroy {
 	 * @param config - Configuration object containing the aggregation pipeline
 	 * @returns Object containing separate lookup indices and modified pipeline
 	 */
-	processSeparateLookups(config: Configuration): { separateLookups: number[]; pipeline: any[] } {
+	processSeparateLookups(pipeline: any[]): { separateLookups: number[]; pipeline: any[] } {
 		const separateLookups: number[] = [];
-		const modifiedPipeline = this.getSkippedPipeline(config);
 
-		for (const [index, pipelineStage] of modifiedPipeline.entries()) {
+		const newPipeline = _.cloneDeep(pipeline);
+		for (const [index, pipelineStage] of newPipeline.entries()) {
 			if (pipelineStage.$lookup?.fetchSeparate) {
 				separateLookups.push(index);
 				delete pipelineStage.$lookup.fetchSeparate;
 			}
 		}
 
-		return { separateLookups, pipeline: modifiedPipeline };
+		return { separateLookups, pipeline: newPipeline };
 	}
 
 	/**
@@ -310,7 +302,7 @@ export class ExtractService implements OnModuleDestroy {
 	 */
 	getSkippedPipeline(config: Configuration) {
 		const skipAfter = this.createSkipAfterExpression(config);
-		return [this.createSkipMatchStage(skipAfter, '$lt'), ...config.aggregation_pipeline];
+		return [this.createSkipMatchStage(skipAfter, '$lt'), ..._.cloneDeep(config.aggregation_pipeline)];
 	}
 
 	/**

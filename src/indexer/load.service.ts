@@ -267,32 +267,21 @@ export class LoadService implements OnModuleInit {
 	 * 1. Retrieves the document from MongoDB
 	 * 2. Indexes it in Elasticsearch
 	 * 3. Updates indexing metadata in MongoDB
-	 * 4. Handles BSONObjectTooLarge errors by using nested pagination
 	 *
 	 * @param collection - MongoDB collection name
 	 * @param id - Document ID to index
 	 */
-	async indexOne(collection: string, id: string, excludeDocPages: boolean = false) {
+	async indexOne(collection: string, id: string) {
 		const configs = this.configs.filter((config) => config.collection === collection);
 		if (configs.length === 0) {
 			throw new Error(`indexOne: config for ${collection} not found`);
 		}
 		for (const config of configs) {
-			let document;
 			try {
-				// Remove fetchSeparate flags without adding skip logic (which is only needed for bulk indexing)
-				let pipeline = this.extractService.removeFetchSeparateFlags(config.aggregation_pipeline);
-				
-				// If excludeDocPages is true, filter out the docPages lookup to reduce document size
-				if (excludeDocPages) {
-					pipeline = pipeline.filter(stage => {
-						// Remove any $lookup that fetches from DocPage collection
-						return !(stage.$lookup && stage.$lookup.from === 'DocPage');
-					});
-					console.log(`indexOne: Excluding docPages lookup for large document ${id}`);
-				}
-				
-				[document] = await this.extractService.getDocuments(
+				const { pipeline, separateLookups } = this.extractService.processSeparateLookups(
+					config.aggregation_pipeline,
+				);
+				const [document] = await this.extractService.getDocumentsWithNestedPagination(
 					config.collection,
 					[
 						{
@@ -302,66 +291,20 @@ export class LoadService implements OnModuleInit {
 						},
 						...pipeline,
 					],
-					1,
+					separateLookups.map((index) => index + 1),
 				);
-			} catch (error: any) {
-				if (error.codeName === 'BSONObjectTooLarge') {
-					console.warn(`indexOne: Document ${id} is too large, using nested pagination`);
-					try {
-						// Use nested pagination for large documents
-						const { pipeline, separateLookups } = this.extractService.processSeparateLookups(config);
-						
-						// If excludeDocPages wasn't already set, try excluding docPages for nested pagination
-						let filteredPipeline = pipeline;
-						if (excludeDocPages) {
-							filteredPipeline = pipeline.filter(stage => {
-								return !(stage.$lookup && stage.$lookup.from === 'DocPage');
-							});
-						}
-						
-						[document] = await this.extractService.getDocumentsWithNestedPagination(
-							config.collection,
-							[
-								{
-									$match: {
-										_id: new ObjectId(id),
-									},
-								},
-								...filteredPipeline,
-							],
-							separateLookups.filter((idx) => {
-								// Also filter out docPages from separate lookups
-								if (excludeDocPages) {
-									const stage = pipeline[idx];
-									return !(stage?.$lookup && stage.$lookup.from === 'DocPage');
-								}
-								return true;
-							}),
-							1,
-						);
-					} catch (nestedError: any) {
-						if (nestedError.codeName === 'BSONObjectTooLarge') {
-							console.error(
-								`indexOne: Document ${id} is too large even with nested pagination (${Math.round(nestedError.errorResponse.errmsg.match(/size: (\d+)/)?.[1] / 1024 / 1024)}MB). Cannot index via change stream.`,
-							);
-							// Re-throw with the original error code so the caller can handle it
-							throw nestedError;
-						}
-						throw nestedError;
-					}
-				} else {
-					throw error;
+				if (!document) {
+					throw new Error(`indexOne: document for ${collection} with id ${id} not found`);
 				}
+				const response = await this.bulkIndexDocuments(config.index_name, [document]);
+				await this.extractService.updateOne(collection, id, {
+					lastESIndexedAt: new Date(),
+					lastESIndexResponse: response.items.find((item) => item.index._id === id.toString())?.index?.result,
+				});
+			} catch (error) {
+				console.error(`indexOne: error indexing document for ${collection} with id ${id}: ${error}`);
+				console.error(error);
 			}
-
-			if (!document) {
-				throw new Error(`indexOne: document for ${collection} with id ${id} not found`);
-			}
-			const response = await this.bulkIndexDocuments(config.index_name, [document]);
-			await this.extractService.updateOne(collection, id, {
-				lastESIndexedAt: new Date(),
-				lastESIndexResponse: response.items.find((item) => item.index._id === id.toString())?.index?.result,
-			});
 		}
 	}
 
@@ -400,7 +343,8 @@ export class LoadService implements OnModuleInit {
 	async indexCollection(config: Configuration, bar: cliProgress.SingleBar) {
 		const skippedCount = await this.extractService.getIndexSkipCount(config);
 		const totalDocuments = await this.extractService.getIndexCounts(config);
-		const { pipeline, separateLookups } = this.extractService.processSeparateLookups(config);
+		const skippedPipeline = this.extractService.getSkippedPipeline(config);
+		const { pipeline, separateLookups } = this.extractService.processSeparateLookups(skippedPipeline);
 		let documents = [];
 
 		bar.start(totalDocuments, 0, {
@@ -414,16 +358,19 @@ export class LoadService implements OnModuleInit {
 		let batchSize = config.batch_size;
 		const startTime = new Date();
 
+		const uniqueIds = new Set<string>();
 		for (let done = 0, completed = false; done < totalDocuments && !completed; ) {
 			try {
-				documents =
-					batchSize <= 5
-						? await this.extractService.getDocumentsWithNestedPagination(
-								config.collection,
-								pipeline,
-								separateLookups,
-							)
-						: await this.extractService.getDocuments(config.collection, pipeline, batchSize);
+				documents = await this.extractService.getDocumentsWithNestedPagination(
+					config.collection,
+					pipeline,
+					separateLookups,
+					batchSize,
+				);
+				for (const document of documents) {
+					uniqueIds.add(document._id.toString());
+				}
+				console.log(`indexCollection: uniqueIds: ${uniqueIds.size}`);
 			} catch (error: any) {
 				if (error.codeName === 'BSONObjectTooLarge') {
 					batchSize = Math.floor(batchSize / 2);
@@ -508,117 +455,43 @@ export class LoadService implements OnModuleInit {
 	 * 4. Skips events that only update indexing fields
 	 * 5. Updates Elasticsearch accordingly
 	 * 6. Records the new resume token
-	 * 7. Automatically restarts on errors
 	 *
 	 * @param collectionName - MongoDB collection name
 	 * @param index - Elasticsearch index name
 	 */
 	async handleChangeStream(collectionName: string, index: string, excludeFields: string[] = []) {
-		try {
-			const resumeToken = await this.getResumeToken(collectionName, index);
-			const token = resumeToken?._source?.['token'];
-			console.log(`handleChangeStream: ${collectionName} ${index} token: ${token}`);
-			const changeStream = await this.extractService.getChangeStream(collectionName, token);
+		const resumeToken = await this.getResumeToken(collectionName, index);
+		const token = resumeToken?._source?.['token'];
+		console.log(`handleChangeStream: ${collectionName} ${index} token: ${token}`);
+		const changeStream = await this.extractService.getChangeStream(collectionName, token);
 
-			console.log(`Starting change stream monitoring for ${collectionName}`);
-			for await (const change of changeStream) {
-				try {
-					console.log(
-						`handleChangeStream: ${collectionName} ${index} ${change.operationType} ${change.documentKey._id}`,
-					);
-					const updatedFields = Object.keys(change?.updateDescription?.updatedFields || {});
-					// console.log(`handleChangeStream: updatedFields: ${JSON.stringify(updatedFields)}`);
-					if (hasOnlyIndexingFields(updatedFields, excludeFields) && change.operationType === 'update') {
-						// console.log(`handleChangeStream skip due to only indexing fields: ${JSON.stringify(updatedFields)}`);
-						await this.acknowledgeChangeEvent(collectionName, index, resumeToken, change);
-						continue;
-					}
-
-					switch (change.operationType) {
-						case 'insert':
-							// For inserts, the document might not match the aggregation pipeline filters yet
-							// The cron job will pick it up if needed
-							try {
-								await this.indexOne(collectionName, change.documentKey._id);
-							} catch (error: any) {
-								if (error.codeName === 'BSONObjectTooLarge') {
-									console.warn(
-										`handleChangeStream: Document ${change.documentKey._id} is too large for real-time indexing, will be handled by cron job`,
-									);
-								} else {
-									console.warn(
-										`handleChangeStream: Could not index new document ${change.documentKey._id}, will be handled by cron job`,
-									);
-								}
-							}
-							break;
-						case 'update':
-							try {
-								// First attempt: normal indexing with all fields including docPages
-								await this.indexOne(collectionName, change.documentKey._id);
-								console.log(`handleChangeStream: ✅ Document ${change.documentKey._id} indexed successfully`);
-							} catch (error: any) {
-								if (error.codeName === 'BSONObjectTooLarge') {
-									const sizeMB = Math.round(
-										parseInt(error.errorResponse?.errmsg?.match(/size: (\d+)/)?.[1] || '0') / 1024 / 1024,
-									);
-									console.warn(
-										`handleChangeStream: ⚠️  Document ${change.documentKey._id} too large (${sizeMB}MB), retrying without docPages (metadata-only update)...`,
-									);
-									try {
-										// Second attempt: exclude docPages to just update metadata
-										await this.indexOne(collectionName, change.documentKey._id, true);
-										console.log(
-											`handleChangeStream: ✅ Document ${change.documentKey._id} metadata indexed successfully (docPages preserved from previous index)`,
-										);
-									} catch (retryError: any) {
-										if (retryError.codeName === 'BSONObjectTooLarge') {
-											console.error(
-												`handleChangeStream: ❌ Document ${change.documentKey._id} still too large even without docPages. Marking for bulk cron job.`,
-											);
-											// Mark the document's lastESIndexedAt as old so cron job will pick it up
-											await this.extractService.updateOne(collectionName, change.documentKey._id.toString(), {
-												lastESIndexedAt: new Date(0), // Set to epoch so update cron will catch it
-											});
-											console.log(
-												`handleChangeStream: 📅 Document ${change.documentKey._id} marked for cron job processing`,
-											);
-										} else {
-											throw retryError; // Re-throw other errors
-										}
-									}
-								} else {
-									throw error; // Re-throw other errors
-								}
-							}
-							break;
-						case 'delete':
-							await this.deleteOne(collectionName, change.documentKey._id);
-							break;
-					}
-					await this.acknowledgeChangeEvent(collectionName, index, resumeToken, change);
-				} catch (error: any) {
-					console.error(
-						`handleChangeStream: Error processing change event for ${collectionName} ${change.documentKey._id}:`,
-						error?.message || error,
-					);
-					console.error(`Error details:`, {
-						operationType: change.operationType,
-						documentId: change.documentKey._id,
-						errorCode: error?.code,
-						errorCodeName: error?.codeName,
-					});
-					// Continue processing other events despite this error
-					// The cron jobs will handle this document eventually
-					console.log(`handleChangeStream: Continuing to process remaining change events...`);
-				}
+		console.log(`Starting change stream monitoring for ${collectionName}`);
+		for await (const change of changeStream) {
+			// console.log(
+			// 	`handleChangeStream: ${collectionName} ${index} ${change.operationType} ${change.documentKey._id}`,
+			// );
+			const updatedFields = Object.keys(change?.updateDescription?.updatedFields || {});
+			if (hasOnlyIndexingFields(updatedFields, excludeFields) && change.operationType === 'update') {
+				// console.log(`handleChangeStream skip due to only indexing or excluded fields: ${excludeFields}`);
+				await this.acknowledgeChangeEvent(collectionName, index, resumeToken, change);
+				continue;
 			}
-		} catch (error) {
-			console.error(`handleChangeStream error for ${collectionName}:`, error);
-			console.log(`Restarting change stream for ${collectionName} in 5 seconds...`);
-			setTimeout(() => {
-				this.handleChangeStream(collectionName, index);
-			}, 5000);
+
+			console.log(
+				`handleChangeStream: ${collectionName} ${index} ${change.operationType} ${change.documentKey._id}`,
+			);
+			switch (change.operationType) {
+				case 'insert':
+					await this.indexOne(collectionName, change.documentKey._id);
+					break;
+				case 'update':
+					await this.indexOne(collectionName, change.documentKey._id);
+					break;
+				case 'delete':
+					await this.deleteOne(collectionName, change.documentKey._id);
+					break;
+			}
+			await this.acknowledgeChangeEvent(collectionName, index, resumeToken, change);
 		}
 	}
 
