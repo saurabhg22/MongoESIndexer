@@ -6,6 +6,10 @@
     "batch_size": 50,
     "skip_after_seconds": 86400,
     "update_field": "updated",
+    "exclude_fields": [
+        "downloads",
+        "lastDownload"
+    ],
     "aggregation_pipeline": [
         {
             "$lookup": {

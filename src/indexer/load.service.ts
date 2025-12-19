@@ -131,7 +131,7 @@ export class LoadService implements OnModuleInit {
 						await this.indexCollection(config, bar);
 					});
 				}
-				this.handleChangeStream(config.collection, config.index_name);
+				this.handleChangeStream(config.collection, config.index_name, config.exclude_fields || []);
 			}),
 		);
 		multiBar.stop();
@@ -443,7 +443,7 @@ export class LoadService implements OnModuleInit {
 	 * @param collectionName - MongoDB collection name
 	 * @param index - Elasticsearch index name
 	 */
-	async handleChangeStream(collectionName: string, index: string) {
+	async handleChangeStream(collectionName: string, index: string, excludeFields: string[] = []) {
 		const resumeToken = await this.getResumeToken(collectionName, index);
 		const token = resumeToken?._source?.['token'];
 		console.log(`handleChangeStream: ${collectionName} ${index} token: ${token}`);
@@ -455,8 +455,8 @@ export class LoadService implements OnModuleInit {
 				`handleChangeStream: ${collectionName} ${index} ${change.operationType} ${change.documentKey._id}`,
 			);
 			const updatedFields = Object.keys(change?.updateDescription?.updatedFields || {});
-			if (hasOnlyIndexingFields(updatedFields) && change.operationType === 'update') {
-				console.log(`handleChangeStream skip due to only indexing fields`);
+			if (hasOnlyIndexingFields(updatedFields, excludeFields) && change.operationType === 'update') {
+				console.log(`handleChangeStream skip due to only indexing or excluded fields: ${excludeFields}`);
 				await this.acknowledgeChangeEvent(collectionName, index, resumeToken, change);
 				continue;
 			}

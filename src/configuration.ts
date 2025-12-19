@@ -20,6 +20,7 @@ export const ConfigurationSchema = z.object({
 		mappings: z.record(z.any()).describe('The mappings to use'),
 	}),
 	update_field: z.string().optional().describe('The date field to use for updated documents'),
+	exclude_fields: z.array(z.string()).optional().describe('The fields to exclude from indexing'),
 });
 
 export type Configuration = z.infer<typeof ConfigurationSchema>;

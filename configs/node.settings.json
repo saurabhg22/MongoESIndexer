@@ -2,7 +2,7 @@
     "collection": "Node",
     "index_name": "ltd_nodes",
     "index_on_start": true,
-    "force_delete": false,
+    "force_delete": true,
     "batch_size": 500,
     "skip_after_seconds": 86400,
     "update_field": "updated",
